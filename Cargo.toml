@@ -1,0 +1,34 @@
+[package]
+name = "cooler_than_you"
+version = "0.1.0"
+authors = ["Bogdan Mircea <mirceapetrebogdan@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "cooler_than_you"
+test = false
+bench = false
+
+[dependencies]
+arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf60870bcfc9f50395a528dc101", features = [
+    "arduino-leonardo",
+] }
+usbd-hid = "0.8"
+panic-halt = "0.2"
+avr-device = "0.5"
+usb-device = "0.3"
+circular-buffer = { version = "1", default-features = false }
+
+# Configure the build for minimal size - AVRs have very little program memory
+[profile.dev]
+panic = "abort"
+lto = true
+opt-level = "s"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+debug = true
+lto = true
+opt-level = "s"

@@ -1,34 +1,37 @@
-[package]
-name = "cooler_than_you"
-version = "0.1.0"
-authors = ["Bogdan Mircea <mirceapetrebogdan@gmail.com>"]
-edition = "2021"
-license = "MIT OR Apache-2.0"
+[workspace]
+members = ["device"]
+resolver = "3"
 
-[[bin]]
-name = "cooler_than_you"
-test = false
-bench = false
-
-[dependencies]
-arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf60870bcfc9f50395a528dc101", features = [
-    "arduino-leonardo",
-] }
+[workspace.dependencies]
 usbd-hid = "0.8"
 panic-halt = "0.2"
 avr-device = "0.5"
 usb-device = "0.3"
 circular-buffer = { version = "1", default-features = false }
+arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf60870bcfc9f50395a528dc101", features = [
+    "arduino-leonardo",
+] }
 
-# Configure the build for minimal size - AVRs have very little program memory
-[profile.dev]
-panic = "abort"
-lto = true
-opt-level = "s"
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+struct_excessive_bools = "allow"
+trivially_copy_pass_by_ref = "allow"
+must_use_candidate = "allow"
+match_bool = "allow"
+module_name_repetitions = "allow"
 
-[profile.release]
-panic = "abort"
-codegen-units = 1
-debug = true
-lto = true
-opt-level = "s"
+[workspace.lints.rust]
+rust_2018_idioms = { level = "warn", priority = -1 }
+rust_2021_compatibility = { level = "warn", priority = -1 }
+meta_variable_misuse = "warn"
+missing_abi = "warn"
+missing_copy_implementations = "warn"
+missing_debug_implementations = "warn"
+non_ascii_idents = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"

@@ -9,8 +9,9 @@ impl<T> InterruptCell<T> {
         Self(UnsafeCell::new(MaybeUninit::uninit()))
     }
 
-    pub fn init(&self, inner: T) {
-        unsafe { (*self.0.get()).write(inner) };
+    #[allow(clippy::mut_from_ref)]
+    pub fn init(&self, inner: T) -> &mut T {
+        unsafe { (*self.0.get()).write(inner) }
     }
 
     #[allow(clippy::mut_from_ref)]

@@ -65,6 +65,7 @@ where
     }
 }
 
+#[allow(clippy::struct_field_names)]
 pub struct MonitorButtons {
     speed_up_monitor: SpeedUpButtonMonitor,
     speed_down_monitor: SpeedDownButtonMonitor,
@@ -126,11 +127,11 @@ where
     PIN: ShortPressPin,
 {
     fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
-        self.state = (self.state << 1) ^ self.is_pressed() as u64;
+        self.state = (self.state << 1) ^ u64::from(self.is_pressed());
 
-        if monitor_state.speed_buttons_enabled() && self.state == 0x000000FFFFFFFFFF {
+        if monitor_state.speed_buttons_enabled() && self.state == 0x0000_00FF_FFFF_FFFF {
             monitor_state.buttons_enabled = false;
-            PIN::short_press_state_update(shared_state)
+            PIN::short_press_state_update(shared_state);
         }
     }
 }
@@ -141,7 +142,7 @@ where
 {
     fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
         let button_pressed = self.is_pressed();
-        self.state = (self.state << 1) ^ button_pressed as u64;
+        self.state = (self.state << 1) ^ u64::from(button_pressed);
 
         // TODO: document order of operations
         if self.history < 21 {
@@ -152,20 +153,21 @@ where
             }
             // Short press
             else if monitor_state.buttons_enabled
-                && (self.state << 23 == 0xFFFFFFFFFF000000 || (self.history > 0 && !button_pressed))
+                && (self.state << 23 == 0xFFFF_FFFF_FF00_0000
+                    || (self.history > 0 && !button_pressed))
             {
                 self.history = 0;
                 monitor_state.buttons_enabled = false;
-                PIN::short_press_state_update(shared_state)
+                PIN::short_press_state_update(shared_state);
             }
         } else {
             // Long press released
-            if self.state << 7 == 0xFFFFFFFFFFFFFF00 {
+            if self.state << 7 == 0xFFFF_FFFF_FFFF_FF00 {
                 self.history = 0;
             }
             // Long press triggered
-            else if monitor_state.buttons_enabled && self.state == 0x00FFFFFFFFFFFFFF {
-                PIN::long_press_state_update(shared_state)
+            else if monitor_state.buttons_enabled && self.state == 0x00FF_FFFF_FFFF_FFFF {
+                PIN::long_press_state_update(shared_state);
             }
         }
     }

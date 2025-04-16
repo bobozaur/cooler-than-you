@@ -23,6 +23,8 @@ type UsbBus = AvrGenericUsbBus<Suspender>;
 static USB_DEVICE: InterruptCell<UsbContext> = InterruptCell::uninit();
 
 pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
+    static USB_BUS: InterruptCell<UsbBusAllocator<UsbBus>> = InterruptCell::uninit();
+
     // Configure PLL interface
     // prescale 16MHz crystal -> 8MHz
     pll.pllcsr.write(|w| w.pindiv().set_bit());
@@ -36,9 +38,7 @@ pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
     // Check PLL lock
     while pll.pllcsr.read().plock().bit_is_clear() {}
 
-    static USB_BUS: InterruptCell<UsbBusAllocator<UsbBus>> = InterruptCell::uninit();
-    USB_BUS.init(UsbBus::with_suspend_notifier(usb, Suspender::new(pll)));
-    let usb_bus = USB_BUS.as_inner_mut();
+    let usb_bus = USB_BUS.init(UsbBus::with_suspend_notifier(usb, Suspender::new(pll)));
 
     let strings = StringDescriptors::new(LangID::EN)
         .manufacturer("Cooler")

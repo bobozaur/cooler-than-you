@@ -1,0 +1,19 @@
+[package]
+name = "device"
+version = "0.1.0"
+authors = ["Bogdan Mircea <mirceapetrebogdan@gmail.com>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "device"
+test = false
+bench = false
+
+[dependencies]
+usbd-hid = { workspace = true }
+panic-halt = { workspace = true }
+avr-device = { workspace = true }
+usb-device = { workspace = true }
+circular-buffer = { workspace = true }
+arduino-hal = { workspace = true }

@@ -3,6 +3,7 @@ use arduino_hal::{
     port::PinOps,
 };
 
+use super::monitor::MonitorState;
 use crate::shared_state::SharedState;
 
 pub type SpeedUpMonitorPin = PE6;
@@ -13,31 +14,43 @@ pub type BacklightMonitorPin = PC6;
 
 pub trait ShortPressPin: PinOps {
     fn short_press_state_update(shared_state: &mut SharedState);
+
+    fn register_short_press(shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
+        register_press(shared_state, monitor_state, Self::short_press_state_update);
+    }
 }
 
 pub trait LongPressPin: ShortPressPin {
     fn long_press_state_update(shared_state: &mut SharedState);
+
+    fn register_long_press(shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
+        register_press(shared_state, monitor_state, Self::long_press_state_update);
+    }
 }
 
 /// Short press on `+` button.
 ///
-/// Has no effect if power is disabled.
+/// Has no effect if power is disabled, but we do not
+/// check against that because turning off the power results
+/// in the backlight being turned off as well.
+///
+/// A check against the backlight is done prior to getting here.
 impl ShortPressPin for SpeedUpMonitorPin {
     fn short_press_state_update(shared_state: &mut SharedState) {
-        if shared_state.power_enabled {
-            shared_state.fan_speed.increase();
-        }
+        shared_state.fan_speed.increase();
     }
 }
 
 /// Short press on `-` button.
 ///
-/// Has no effect if power is disabled.
+/// Has no effect if power is disabled, but we do not
+/// check against that because turning off the power results
+/// in the backlight being turned off as well.
+///
+/// A check against the backlight is done prior to getting here.
 impl ShortPressPin for SpeedDownMonitorPin {
     fn short_press_state_update(shared_state: &mut SharedState) {
-        if shared_state.power_enabled {
-            shared_state.fan_speed.decrease();
-        }
+        shared_state.fan_speed.decrease();
     }
 }
 
@@ -72,5 +85,15 @@ impl ShortPressPin for LedMonitorPin {
 impl LongPressPin for LedMonitorPin {
     fn long_press_state_update(shared_state: &mut SharedState) {
         shared_state.leds_enabled = !shared_state.leds_enabled;
+    }
+}
+
+fn register_press<F>(shared_state: &mut SharedState, monitor_state: &mut MonitorState, f: F)
+where
+    F: FnOnce(&mut SharedState),
+{
+    if monitor_state.buttons_enabled() {
+        monitor_state.set_buttons_enabled(false);
+        f(shared_state)
     }
 }

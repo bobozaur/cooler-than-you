@@ -10,7 +10,7 @@ use arduino_hal::{
     },
 };
 use avr_device::interrupt;
-use monitor::{ButtonMonitorOps, MonitorButtons, MonitorState};
+use monitor::{MonitorButtons, MonitorState};
 use pins::{
     BacklightMonitorPin, LedMonitorPin, PowerMonitorPin, SpeedDownMonitorPin, SpeedUpMonitorPin,
 };

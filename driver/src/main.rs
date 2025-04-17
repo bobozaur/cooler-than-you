@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{thread::sleep, time::Duration};
 
-use rusb::{Context, UsbContext};
+use rusb::{Context, Error, UsbContext};
 
 fn main() {
     let device = Context::new()
@@ -16,7 +16,6 @@ fn main() {
 
     let handle = device.open().expect("unable to open device");
     handle.set_auto_detach_kernel_driver(true).unwrap();
-    handle.claim_interface(0).unwrap();
 
     println!(
         "Active configuration: {}",
@@ -48,10 +47,19 @@ fn main() {
         }
     }
 
-    let mut buf = [0; 1];
-    handle
-        .read_interrupt(130, &mut buf, Duration::from_millis(10))
-        .unwrap();
+    loop {
+        handle.claim_interface(0).unwrap();
+        handle.set_alternate_setting(0, 0).unwrap();
 
-    println!("Data read: {buf:?}");
+        let mut buf = [0; 1];
+        match handle.read_interrupt(130, &mut buf, Duration::from_millis(500)) {
+            Ok(_) => (),
+            Err(Error::Timeout) => continue,
+            Err(e) => panic!("{e}"),
+        }
+
+        println!("Data read: {buf:?}");
+
+        handle.release_interface(0).unwrap();
+    }
 }

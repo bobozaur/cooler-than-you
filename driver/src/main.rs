@@ -47,19 +47,23 @@ fn main() {
         }
     }
 
-    loop {
+    // loop {
         handle.claim_interface(0).unwrap();
         handle.set_alternate_setting(0, 0).unwrap();
 
         let mut buf = [0; 1];
         match handle.read_interrupt(130, &mut buf, Duration::from_millis(500)) {
-            Ok(_) => (),
-            Err(Error::Timeout) => continue,
+            Ok(n) => println!("State: {}", buf[0]),
+            // Err(Error::Timeout) => continue,
             Err(e) => panic!("{e}"),
         }
 
-        println!("Data read: {buf:?}");
+        match handle.write_interrupt(1, &[7], Duration::from_millis(500)) {
+            Ok(n) => println!("Wrote {n} bytes"),
+            // Err(Error::Timeout) => continue,
+            Err(e) => panic!("{e}"),
+        }
 
         handle.release_interface(0).unwrap();
-    }
+    // }
 }

@@ -1,7 +1,7 @@
 /// Commands that the device can execute.
-/// 
+///
 /// While the power and LED buttons are in fact toggles, separating
-/// them makes it easier to reason about what to do depending on the 
+/// them makes it easier to reason about what to do depending on the
 /// current device state.
 #[repr(u8)]
 pub enum Command {
@@ -25,14 +25,14 @@ pub enum Command {
     LedsOff,
     // Long press on LEDs button.
     // Turns the leds off after a short delay.
-    // 
+    //
     // This is a separate command because on device unplug
     // a USB suspend gets triggered which sends [`Command::LedsOff`]
     // to the main function.
-    // 
+    //
     // However, power runs out way before the long press is achieved,
     // and a short press is triggered instead, changing LEDs color.
-    // 
+    //
     // So, for the USB suspend code, we use the [`Command::DelayedLedsOff`]
     // so we can wait a bit before triggering the long press, ensuring that
     // if the device is unplugged power runs out before a LED button short
@@ -54,7 +54,8 @@ impl TryFrom<u8> for Command {
             3 => Ok(Command::PowerOff),
             4 => Ok(Command::LedsOn),
             5 => Ok(Command::LedsOff),
-            6 => Ok(Command::LedsColorChange),
+            6 => Ok(Command::DelayedLedsOff),
+            7 => Ok(Command::LedsColorChange),
             _ => Err(()),
         }
     }

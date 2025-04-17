@@ -16,8 +16,8 @@ pub struct HidReport {
 
 impl From<&SharedState> for HidReport {
     fn from(shared_state: &SharedState) -> Self {
-        let power_enabled = u8::from(shared_state.power_enabled) << 4;
-        let leds_enabled = u8::from(shared_state.leds_enabled) << 3;
+        let power_enabled = u8::from(shared_state.power_enabled) << 7;
+        let leds_enabled = u8::from(shared_state.leds_enabled) << 6;
         let fan_speed = shared_state.fan_speed as u8;
 
         Self {

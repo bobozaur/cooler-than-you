@@ -1,8 +1,14 @@
 [workspace]
-members = ["device"]
+members = ["device", "driver"]
 resolver = "3"
 
+[workspace.package]
+authors = ["Bogdan Mircea <mirceapetrebogdan@gmail.com>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
 [workspace.dependencies]
+rusb = "0.9"
 usbd-hid = "0.8"
 panic-halt = "0.2"
 avr-device = "0.5"

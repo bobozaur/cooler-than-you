@@ -1,9 +1,9 @@
 [package]
 name = "device"
 version = "0.1.0"
-authors = ["Bogdan Mircea <mirceapetrebogdan@gmail.com>"]
-edition = "2024"
-license = "MIT OR Apache-2.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [[bin]]
 name = "device"
@@ -17,3 +17,6 @@ avr-device = { workspace = true }
 usb-device = { workspace = true }
 circular-buffer = { workspace = true }
 arduino-hal = { workspace = true }
+
+[lints]
+workspace = true

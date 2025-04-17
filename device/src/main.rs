@@ -30,8 +30,8 @@ fn main() -> ! {
     let usb = peripherals.USB_DEVICE;
     let Pins {
         d5: backlight_mon_pin,
-        d6: speed_up_mon_pin,
-        d7: speed_down_mon_pin,
+        d6: speed_down_mon_pin,
+        d7: speed_up_mon_pin,
         d8: led_mon_pin,
         d9: power_mon_pin,
         d10: power_btn_pin,
@@ -98,7 +98,7 @@ fn main() -> ! {
             // Used in the USB suspend code. Check the variant docs
             // for more info.
             Some(Command::DelayedLedsOff) => {
-                delay_ms(200);
+                delay_ms(250);
                 led_btn.long_press();
             }
             None => sleep(),

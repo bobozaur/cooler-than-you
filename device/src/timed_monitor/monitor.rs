@@ -88,14 +88,6 @@ impl MonitorButtons {
             led_monitor: LedButtonMonitor::new(led_mon_pin),
         }
     }
-
-    #[inline]
-    pub fn all_buttons_released(&self) -> bool {
-        !self.speed_up_monitor.is_pressed()
-            && !self.speed_down_monitor.is_pressed()
-            && !self.power_monitor.is_pressed()
-            && !self.led_monitor.is_pressed()
-    }
 }
 
 pub struct MonitorState {
@@ -119,20 +111,28 @@ impl MonitorState {
 }
 
 pub trait ButtonMonitorOps {
-    fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState);
+    fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState)
+    -> bool;
 }
 
 impl<PIN> ButtonMonitorOps for ButtonMonitor<PIN>
 where
     PIN: ShortPressPin,
 {
-    fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
-        self.state = (self.state << 1) ^ u64::from(self.is_pressed());
+    fn monitor(
+        &mut self,
+        shared_state: &mut SharedState,
+        monitor_state: &mut MonitorState,
+    ) -> bool {
+        let button_pressed = self.is_pressed();
+        self.state = (self.state << 1) ^ u64::from(button_pressed);
 
-        if monitor_state.speed_buttons_enabled() && self.state == 0x0000_00FF_FFFF_FFFF {
+        if monitor_state.speed_buttons_enabled() && self.state << 23 == 0x7FFF_FFFF_FF80_0000 {
             monitor_state.buttons_enabled = false;
             PIN::short_press_state_update(shared_state);
         }
+
+        button_pressed
     }
 }
 
@@ -140,7 +140,11 @@ impl<PIN> ButtonMonitorOps for ExtendedButtonMonitor<PIN>
 where
     PIN: LongPressPin,
 {
-    fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
+    fn monitor(
+        &mut self,
+        shared_state: &mut SharedState,
+        monitor_state: &mut MonitorState,
+    ) -> bool {
         let button_pressed = self.is_pressed();
         self.state = (self.state << 1) ^ u64::from(button_pressed);
 
@@ -167,21 +171,29 @@ where
             }
             // Long press triggered
             else if monitor_state.buttons_enabled && self.state == 0x00FF_FFFF_FFFF_FFFF {
+                monitor_state.buttons_enabled = false;
                 PIN::long_press_state_update(shared_state);
             }
         }
+
+        button_pressed
     }
 }
 
 impl ButtonMonitorOps for MonitorButtons {
-    fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
-        self.speed_up_monitor.monitor(shared_state, monitor_state);
-        self.speed_down_monitor.monitor(shared_state, monitor_state);
-        self.power_monitor.monitor(shared_state, monitor_state);
-        self.led_monitor.monitor(shared_state, monitor_state);
-
+    fn monitor(
+        &mut self,
+        shared_state: &mut SharedState,
+        monitor_state: &mut MonitorState,
+    ) -> bool {
         // If buttons are disabled (a command was issued), check if all buttons are released.
         // As long as a button is still pressed, no other button presses are registered.
-        monitor_state.buttons_enabled |= self.all_buttons_released();
+        monitor_state.buttons_enabled |=
+            !(self.speed_up_monitor.monitor(shared_state, monitor_state)
+                || self.speed_down_monitor.monitor(shared_state, monitor_state)
+                || self.power_monitor.monitor(shared_state, monitor_state)
+                || self.led_monitor.monitor(shared_state, monitor_state));
+
+        monitor_state.buttons_enabled
     }
 }

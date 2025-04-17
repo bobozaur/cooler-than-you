@@ -100,11 +100,10 @@ impl UsbContext {
             let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
 
             if shared_state.send_state {
-                let res = self
+                if let Ok(1) = self
                     .hid_class
-                    .push_raw_input(&[shared_state.device_state.into()]);
-
-                if res.is_ok() {
+                    .push_raw_input(&[shared_state.device_state.into()])
+                {
                     shared_state.send_state = false;
                 }
             }

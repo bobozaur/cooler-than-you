@@ -38,23 +38,26 @@ fn main() {
     let mut buf = [0; 1];
 
     loop {
+        handle.claim_interface(0).unwrap();
+        handle.set_alternate_setting(0, 0).unwrap();
+
         match handle.read_interrupt(130, &mut buf, Duration::from_millis(500)) {
             Ok(_) => println!("State: {:?}", DeviceState::try_from(buf[0]).unwrap()),
-            Err(Error::Timeout) => continue,
+            Err(Error::Timeout) => (),
             Err(e) => panic!("{e}"),
         }
 
-        match handle.write_interrupt(
-            1,
-            &[Command::LedsColorChange.into()],
-            Duration::from_millis(500),
-        ) {
-            Ok(n) => println!("Wrote {n} bytes"),
-            Err(e) => panic!("{e}"),
-        }
+        // match handle.write_interrupt(
+        //     1,
+        //     &[Command::LedsColorChange.into()],
+        //     Duration::from_millis(500),
+        // ) {
+        //     Ok(n) => println!("Wrote {n} bytes"),
+        //     Err(e) => panic!("{e}"),
+        // }
 
-        thread::sleep(Duration::from_secs(2));
+        handle.release_interface(0).unwrap();
+
+        thread::sleep(Duration::from_millis(100));
     }
-
-    // handle.release_interface(0).unwrap();
 }

@@ -17,7 +17,7 @@ impl SharedState {
     pub const fn new() -> Self {
         Self {
             device_state: DeviceState {
-                fan_speed: FanSpeed::Speed6,
+                fan_speed: FanSpeed::Speed1,
                 power_enabled: true,
                 leds_enabled: true,
             },

@@ -15,7 +15,7 @@ use arduino_hal::{Pins, delay_ms};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
 use panic_halt as _;
-use shared::Command;
+use shared::{Command, FanSpeed};
 use shared_state::{SHARED_STATE, SharedState};
 use timed_monitor::setup_timed_monitor;
 use usb::setup_usb;
@@ -58,8 +58,8 @@ fn main() -> ! {
     setup_usb(pll, usb);
 
     // Always ensure highest speed is set on startup.
-    for _ in 0..5 {
-        speed_up_btn.short_press();
+    for _ in 0..FanSpeed::Speed6 as u8 {
+        speed_down_btn.short_press();
     }
 
     // Enable interrupts globally.

@@ -14,8 +14,8 @@ mod usb;
 use arduino_hal::{Pins, delay_ms};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
-use shared::Command;
 use panic_halt as _;
+use shared::Command;
 use shared_state::{SHARED_STATE, SharedState};
 use timed_monitor::setup_timed_monitor;
 use usb::setup_usb;
@@ -76,6 +76,7 @@ fn main() -> ! {
             let SharedState {
                 device_state,
                 command_queue,
+                ..
             } = &mut *SHARED_STATE.borrow(cs).borrow_mut();
 
             // Omit commands that are inconsistent with the current state.

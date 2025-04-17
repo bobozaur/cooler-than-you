@@ -99,9 +99,15 @@ impl UsbContext {
         interrupt::free(|cs| {
             let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
 
-            self.hid_class
-                .push_raw_input(&[shared_state.device_state.into()])
-                .ok();
+            if shared_state.send_state {
+                let res = self
+                    .hid_class
+                    .push_raw_input(&[shared_state.device_state.into()]);
+
+                if res.is_ok() {
+                    shared_state.send_state = false;
+                }
+            }
 
             if self.usb_device.poll(&mut [&mut self.hid_class]) {
                 let mut report_buf = [0u8; 1];

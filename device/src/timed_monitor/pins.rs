@@ -4,7 +4,7 @@ use arduino_hal::{
 };
 use shared::DeviceState;
 
-use super::monitor::MonitorState;
+use crate::{shared_state::SharedState, timed_monitor::MonitorState};
 
 pub type SpeedUpMonitorPin = PE6;
 pub type SpeedDownMonitorPin = PD7;
@@ -15,7 +15,7 @@ pub type BacklightMonitorPin = PC6;
 pub trait ShortPressPin: PinOps {
     fn short_press_state_update(shared_state: &mut DeviceState);
 
-    fn register_short_press(shared_state: &mut DeviceState, monitor_state: &mut MonitorState) {
+    fn register_short_press(shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
         register_press(shared_state, monitor_state, Self::short_press_state_update);
     }
 }
@@ -23,7 +23,7 @@ pub trait ShortPressPin: PinOps {
 pub trait LongPressPin: ShortPressPin {
     fn long_press_state_update(shared_state: &mut DeviceState);
 
-    fn register_long_press(shared_state: &mut DeviceState, monitor_state: &mut MonitorState) {
+    fn register_long_press(shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
         register_press(shared_state, monitor_state, Self::long_press_state_update);
     }
 }
@@ -88,12 +88,13 @@ impl LongPressPin for LedMonitorPin {
     }
 }
 
-fn register_press<F>(shared_state: &mut DeviceState, monitor_state: &mut MonitorState, f: F)
+fn register_press<F>(shared_state: &mut SharedState, monitor_state: &mut MonitorState, f: F)
 where
     F: FnOnce(&mut DeviceState),
 {
-    if monitor_state.buttons_enabled() {
-        monitor_state.set_buttons_enabled(false);
-        f(shared_state)
+    if monitor_state.buttons_enabled {
+        monitor_state.buttons_enabled = false;
+        shared_state.send_state = true;
+        f(&mut shared_state.device_state);
     }
 }

@@ -72,8 +72,8 @@ impl MonitorContext {
     #[inline]
     fn monitor(&mut self) {
         interrupt::free(|cs| {
-            let device_state = &mut SHARED_STATE.borrow(cs).borrow_mut().device_state;
-            self.buttons.monitor(device_state, &mut self.state);
+            let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
+            self.buttons.monitor(shared_state, &mut self.state);
         });
     }
 }

@@ -8,6 +8,7 @@ pub static SHARED_STATE: Mutex<RefCell<SharedState>> = Mutex::new(RefCell::new(S
 
 pub struct SharedState {
     pub device_state: DeviceState,
+    pub send_state: bool,
     pub command_queue: CircularBuffer<32, Command>,
 }
 
@@ -20,6 +21,7 @@ impl SharedState {
                 power_enabled: true,
                 leds_enabled: true,
             },
+            send_state: true,
             command_queue: CircularBuffer::new(),
         }
     }

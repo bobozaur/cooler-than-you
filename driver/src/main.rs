@@ -1,6 +1,7 @@
-use std::{thread::sleep, time::Duration};
+use std::{thread, time::Duration};
 
 use rusb::{Context, Error, UsbContext};
+use shared::{Command, DeviceState};
 
 fn main() {
     let device = Context::new()
@@ -13,24 +14,6 @@ fn main() {
             (desc.vendor_id() == 0xd016 && desc.product_id() == 0xdb08).then_some(device)
         })
         .expect("no matching device found");
-
-    let handle = device.open().expect("unable to open device");
-    handle.set_auto_detach_kernel_driver(true).unwrap();
-
-    println!(
-        "Active configuration: {}",
-        handle.active_configuration().unwrap()
-    );
-
-    println!(
-        "Kernel driver active: {}",
-        handle.kernel_driver_active(0).unwrap()
-    );
-
-    println!(
-        "Config descriptor: {:?}",
-        device.active_config_descriptor().unwrap()
-    );
 
     for interface in device.active_config_descriptor().unwrap().interfaces() {
         for idesc in interface.descriptors() {
@@ -47,23 +30,31 @@ fn main() {
         }
     }
 
-    // loop {
-        handle.claim_interface(0).unwrap();
-        handle.set_alternate_setting(0, 0).unwrap();
+    let handle = device.open().expect("unable to open device");
+    handle.set_auto_detach_kernel_driver(true).unwrap();
+    handle.claim_interface(0).unwrap();
+    handle.set_alternate_setting(0, 0).unwrap();
 
-        let mut buf = [0; 1];
+    let mut buf = [0; 1];
+
+    loop {
         match handle.read_interrupt(130, &mut buf, Duration::from_millis(500)) {
-            Ok(n) => println!("State: {}", buf[0]),
-            // Err(Error::Timeout) => continue,
+            Ok(_) => println!("State: {:?}", DeviceState::try_from(buf[0]).unwrap()),
+            Err(Error::Timeout) => continue,
             Err(e) => panic!("{e}"),
         }
 
-        match handle.write_interrupt(1, &[7], Duration::from_millis(500)) {
+        match handle.write_interrupt(
+            1,
+            &[Command::LedsColorChange.into()],
+            Duration::from_millis(500),
+        ) {
             Ok(n) => println!("Wrote {n} bytes"),
-            // Err(Error::Timeout) => continue,
             Err(e) => panic!("{e}"),
         }
 
-        handle.release_interface(0).unwrap();
-    // }
+        thread::sleep(Duration::from_secs(2));
+    }
+
+    // handle.release_interface(0).unwrap();
 }

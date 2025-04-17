@@ -1,7 +1,8 @@
 use arduino_hal::{pac::PLL, usb::SuspendNotifier};
 use avr_device::interrupt;
+use shared::Command;
 
-use crate::{command::Command, shared_state::SHARED_STATE};
+use crate::shared_state::SHARED_STATE;
 
 pub struct Suspender(PLL);
 
@@ -18,7 +19,9 @@ impl SuspendNotifier for Suspender {
 
         interrupt::free(|cs| {
             let mut shared_state = SHARED_STATE.borrow(cs).borrow_mut();
-            shared_state.command_queue.push_front(Command::DelayedLedsOff);
+            shared_state
+                .command_queue
+                .push_front(Command::DelayedLedsOff);
             shared_state.command_queue.push_front(Command::PowerOff);
         });
     }

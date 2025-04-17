@@ -4,6 +4,8 @@
 /// them makes it easier to reason about what to do depending on the
 /// current device state.
 #[repr(u8)]
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(test, derive(strum::EnumIter, PartialEq))]
 pub enum Command {
     // Short press on `+` button.
     // Increases fan speed.
@@ -43,6 +45,12 @@ pub enum Command {
     LedsColorChange,
 }
 
+impl From<Command> for u8 {
+    fn from(value: Command) -> Self {
+        value as Self
+    }
+}
+
 impl TryFrom<u8> for Command {
     type Error = ();
 
@@ -57,6 +65,20 @@ impl TryFrom<u8> for Command {
             6 => Ok(Command::DelayedLedsOff),
             7 => Ok(Command::LedsColorChange),
             _ => Err(()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use strum::IntoEnumIterator;
+
+    use super::Command;
+
+    #[test]
+    fn test_command_parsing() {
+        for command in Command::iter() {
+            assert_eq!((command as u8).try_into(), Ok(command));
         }
     }
 }

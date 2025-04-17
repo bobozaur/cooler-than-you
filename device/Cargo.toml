@@ -11,6 +11,10 @@ test = false
 bench = false
 
 [dependencies]
+# Internal
+shared = { workspace = true }
+
+# External
 usbd-hid = { workspace = true }
 panic-halt = { workspace = true }
 avr-device = { workspace = true }

@@ -6,8 +6,6 @@
 #![feature(const_format_args)]
 
 mod button;
-mod command;
-mod fan_speed;
 mod interrupt_cell;
 mod shared_state;
 mod timed_monitor;
@@ -16,9 +14,9 @@ mod usb;
 use arduino_hal::{Pins, delay_ms};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
-use command::Command;
+use shared::Command;
 use panic_halt as _;
-use shared_state::SHARED_STATE;
+use shared_state::{SHARED_STATE, SharedState};
 use timed_monitor::setup_timed_monitor;
 use usb::setup_usb;
 
@@ -75,15 +73,18 @@ fn main() -> ! {
 
     loop {
         let command = interrupt::free(|cs| {
-            let mut shared_state = SHARED_STATE.borrow(cs).borrow_mut();
+            let SharedState {
+                device_state,
+                command_queue,
+            } = &mut *SHARED_STATE.borrow(cs).borrow_mut();
 
             // Omit commands that are inconsistent with the current state.
             loop {
-                break match shared_state.command_queue.pop_back() {
-                    Some(Command::PowerOn) if shared_state.power_enabled => continue,
-                    Some(Command::PowerOff) if !shared_state.power_enabled => continue,
-                    Some(Command::LedsOn) if shared_state.leds_enabled => continue,
-                    Some(Command::LedsOff) if !shared_state.leds_enabled => continue,
+                break match command_queue.pop_back() {
+                    Some(Command::PowerOn) if device_state.power_enabled => continue,
+                    Some(Command::PowerOff) if !device_state.power_enabled => continue,
+                    Some(Command::LedsOn) if device_state.leds_enabled => continue,
+                    Some(Command::LedsOff) if !device_state.leds_enabled => continue,
                     command => command,
                 };
             }

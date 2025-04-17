@@ -2,14 +2,12 @@ use arduino_hal::port::{
     Pin, PinOps,
     mode::{Input, PullUp},
 };
+use shared::DeviceState;
 
 use super::pins::{
     BacklightMonitorPin, LedMonitorPin, PowerMonitorPin, SpeedDownMonitorPin, SpeedUpMonitorPin,
 };
-use crate::{
-    shared_state::SharedState,
-    timed_monitor::pins::{LongPressPin, ShortPressPin},
-};
+use crate::timed_monitor::pins::{LongPressPin, ShortPressPin};
 
 type ExtendedButtonMonitor<PIN> = ButtonMonitor<PIN, u8>;
 
@@ -73,7 +71,7 @@ where
     /// Monitors the button and returns whether it was pressed.
     fn monitor(
         &mut self,
-        shared_state: &mut SharedState,
+        shared_state: &mut DeviceState,
         monitor_state: &mut MonitorState,
     ) -> bool {
         let is_pressed = self.is_pressed();
@@ -85,7 +83,7 @@ where
 
 trait ButtonStateUpdate {
     /// Tracks and updates the button state, registering presses if necessary.
-    fn update_state(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState);
+    fn update_state(&mut self, shared_state: &mut DeviceState, monitor_state: &mut MonitorState);
 }
 
 impl<PIN> ButtonStateUpdate for ButtonMonitor<PIN>
@@ -93,7 +91,7 @@ where
     PIN: ShortPressPin,
 {
     #[inline]
-    fn update_state(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
+    fn update_state(&mut self, shared_state: &mut DeviceState, monitor_state: &mut MonitorState) {
         // If a speed button is pressed when the backlight is **NOT** active then
         // buttons get disabled until all of them are released. The physical button
         // press however activates the backlight, thus a subsequent press will be correctly
@@ -116,7 +114,7 @@ where
     PIN: LongPressPin,
 {
     #[inline]
-    fn update_state(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
+    fn update_state(&mut self, shared_state: &mut DeviceState, monitor_state: &mut MonitorState) {
         // TODO: document order of operations
         if self.history < 21 {
             // Long press pending
@@ -169,13 +167,13 @@ impl MonitorButtons {
     }
 
     #[inline]
-    pub fn monitor(&mut self, shared_state: &mut SharedState, monitor_state: &mut MonitorState) {
+    pub fn monitor(&mut self, device_state: &mut DeviceState, monitor_state: &mut MonitorState) {
         // If buttons are disabled (a command was issued), check if all buttons are released.
         // As long as a button is still pressed, no other button presses are registered.
-        let any_button_pressed = self.speed_up_monitor.monitor(shared_state, monitor_state)
-            || self.speed_down_monitor.monitor(shared_state, monitor_state)
-            || self.power_monitor.monitor(shared_state, monitor_state)
-            || self.led_monitor.monitor(shared_state, monitor_state);
+        let any_button_pressed = self.speed_up_monitor.monitor(device_state, monitor_state)
+            || self.speed_down_monitor.monitor(device_state, monitor_state)
+            || self.power_monitor.monitor(device_state, monitor_state)
+            || self.led_monitor.monitor(device_state, monitor_state);
 
         // The monitor state is modified when a press completes.
         // We only want to update it if a command was registered and

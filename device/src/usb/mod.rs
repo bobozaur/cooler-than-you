@@ -100,7 +100,7 @@ impl UsbContext {
             let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
 
             self.hid_class
-                .push_input(&HidReport::from(&**shared_state))
+                .push_raw_input(&[shared_state.device_state.into()])
                 .ok();
 
             if self.usb_device.poll(&mut [&mut self.hid_class]) {

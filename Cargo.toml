@@ -1,5 +1,5 @@
 [workspace]
-members = ["device", "driver"]
+members = ["shared", "device", "driver"]
 resolver = "3"
 
 [workspace.package]
@@ -8,14 +8,18 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-rusb = "0.9"
-usbd-hid = "0.8"
-panic-halt = "0.2"
-avr-device = "0.5"
-usb-device = "0.3"
+shared = { path = "shared" }
+
+strum = { version = "0.27", default-features = false, features = ["derive"] }
+rusb = { version = "0.9", default-features = false }
+usbd-hid = { version = "0.8", default-features = false }
+panic-halt = { version = "0.2", default-features = false }
+avr-device = { version = "0.5", default-features = false }
+usb-device = { version = "0.3", default-features = false }
 circular-buffer = { version = "1", default-features = false }
-arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf60870bcfc9f50395a528dc101", features = [
+arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf60870bcfc9f50395a528dc101", default-features = false, features = [
     "arduino-leonardo",
+    "rt",
 ] }
 
 [workspace.lints.clippy]

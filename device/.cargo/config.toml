@@ -5,7 +5,7 @@ build-std = ["core"]
 target = ".cargo/avr-atmega32u4.json"
 
 [target.'cfg(target_arch = "avr")']
-runner = "ravedude leonardo"
+runner = "ravedude leonardo -P /dev/ttyACM0 -d 0"
 
 # Configure the build for minimal size - AVRs have very little program memory
 [profile.dev]

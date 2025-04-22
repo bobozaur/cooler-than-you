@@ -1,5 +1,3 @@
-use core::prelude::v1::derive;
-
 use crate::fan_speed::FanSpeed;
 
 #[derive(Copy, Clone, Debug, PartialEq)]

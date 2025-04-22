@@ -12,11 +12,25 @@ pub enum FanSpeed {
 
 impl FanSpeed {
     pub fn increase(&mut self) {
-        *self = (*self as u8 + 1).try_into().unwrap_or(FanSpeed::Speed6);
+        *self = match self {
+            FanSpeed::Speed1 => FanSpeed::Speed2,
+            FanSpeed::Speed2 => FanSpeed::Speed3,
+            FanSpeed::Speed3 => FanSpeed::Speed4,
+            FanSpeed::Speed4 => FanSpeed::Speed5,
+            FanSpeed::Speed5 => FanSpeed::Speed6,
+            FanSpeed::Speed6 => FanSpeed::Speed6,
+        };
     }
 
     pub fn decrease(&mut self) {
-        *self = (*self as u8 - 1).try_into().unwrap_or(FanSpeed::Speed1);
+        *self = match self {
+            FanSpeed::Speed1 => FanSpeed::Speed1,
+            FanSpeed::Speed2 => FanSpeed::Speed1,
+            FanSpeed::Speed3 => FanSpeed::Speed2,
+            FanSpeed::Speed4 => FanSpeed::Speed3,
+            FanSpeed::Speed5 => FanSpeed::Speed4,
+            FanSpeed::Speed6 => FanSpeed::Speed5,
+        };
     }
 }
 
@@ -44,6 +58,8 @@ impl TryFrom<u8> for FanSpeed {
 
 #[cfg(test)]
 mod tests {
+    use core::cmp;
+
     use strum::IntoEnumIterator;
 
     use super::FanSpeed;
@@ -56,18 +72,26 @@ mod tests {
     }
 
     #[test]
-    fn test_max_fan_speed() {
-        for mut fan_speed in [FanSpeed::Speed5, FanSpeed::Speed6] {
+    fn test_fan_speed_increase() {
+        for mut fan_speed in FanSpeed::iter() {
+            let value = fan_speed as u8;
             fan_speed.increase();
-            assert_eq!(fan_speed, FanSpeed::Speed6);
+            assert_eq!(
+                cmp::min(value.saturating_add(1), FanSpeed::Speed6 as u8),
+                fan_speed as u8
+            );
         }
     }
 
     #[test]
-    fn test_min_fan_speed() {
-        for mut fan_speed in [FanSpeed::Speed2, FanSpeed::Speed1] {
+    fn test_fan_speed_decrease() {
+        for mut fan_speed in FanSpeed::iter() {
+            let value = fan_speed as u8;
             fan_speed.decrease();
-            assert_eq!(fan_speed, FanSpeed::Speed1);
+            assert_eq!(
+                cmp::max(value.saturating_sub(1), FanSpeed::Speed1 as u8),
+                fan_speed as u8
+            );
         }
     }
 }

@@ -50,6 +50,10 @@ where
 pub enum MonitorState {
     Active,
     Paused,
-    PowerFocused,
-    LedFocused,
+    Focused(MonitorFocusKind),
+}
+
+pub enum MonitorFocusKind {
+    Power,
+    Leds,
 }

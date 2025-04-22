@@ -1,7 +1,7 @@
 use std::{thread, time::Duration};
 
 use rusb::{Context, Error, UsbContext};
-use shared::{Command, DeviceState};
+use shared::DeviceState;
 
 fn main() {
     let device = Context::new()

@@ -19,10 +19,8 @@ impl SuspendNotifier for Suspender {
 
         interrupt::free(|cs| {
             let mut shared_state = SHARED_STATE.borrow(cs).borrow_mut();
-            shared_state
-                .command_queue
-                .push_front(Command::DelayedLedsOff);
-            shared_state.command_queue.push_front(Command::PowerOff);
+            shared_state.push_command(Command::DelayedLedsOff);
+            shared_state.push_command(Command::PowerOff);
         });
     }
 
@@ -31,8 +29,8 @@ impl SuspendNotifier for Suspender {
 
         interrupt::free(|cs| {
             let mut shared_state = SHARED_STATE.borrow(cs).borrow_mut();
-            shared_state.command_queue.push_front(Command::LedsOn);
-            shared_state.command_queue.push_front(Command::PowerOn);
+            shared_state.push_command(Command::LedsOn);
+            shared_state.push_command(Command::PowerOn);
         });
     }
 }

@@ -11,12 +11,13 @@ use arduino_hal::{
 };
 use avr_device::interrupt;
 use monitor::{
-    BacklightMonitor, LedButtonMonitor, MonitorState, PowerButtonMonitor, SpeedDownButtonMonitor,
-    SpeedUpButtonMonitor,
+    BacklightMonitor, LedButtonMonitor, MonitorFocusKind, MonitorState, PowerButtonMonitor,
+    SpeedDownButtonMonitor, SpeedUpButtonMonitor,
 };
 use pins::{
     BacklightMonitorPin, LedMonitorPin, PowerMonitorPin, SpeedDownMonitorPin, SpeedUpMonitorPin,
 };
+use shared::DeviceState;
 
 use crate::{interrupt_cell::InterruptCell, shared_state::SHARED_STATE};
 
@@ -106,7 +107,7 @@ impl MonitorContext {
             let any_button_pressed =
                 speed_up_pressed || speed_down_pressed || power_pressed || led_pressed;
 
-            match self.monitor_state {
+            match &self.monitor_state {
                 MonitorState::Active => {
                     self.buttons_state = (self.buttons_state << 1) ^ u64::from(any_button_pressed);
 
@@ -118,20 +119,18 @@ impl MonitorContext {
                             self.monitor_state = MonitorState::Paused;
 
                             if backlight_active {
-                                shared_state.send_state = true;
-                                shared_state.device_state.fan_speed.increase();
+                                shared_state.write_device_state(DeviceState::increase_fan_speed);
                             }
                         } else if speed_down_pressed {
                             self.monitor_state = MonitorState::Paused;
 
                             if backlight_active {
-                                shared_state.send_state = true;
-                                shared_state.device_state.fan_speed.decrease();
+                                shared_state.write_device_state(DeviceState::decrease_fan_speed);
                             }
                         } else if power_pressed {
-                            self.monitor_state = MonitorState::PowerFocused;
+                            self.monitor_state = MonitorState::Focused(MonitorFocusKind::Power);
                         } else if led_pressed {
-                            self.monitor_state = MonitorState::LedFocused;
+                            self.monitor_state = MonitorState::Focused(MonitorFocusKind::Leds);
                         }
                     }
                 }
@@ -142,8 +141,17 @@ impl MonitorContext {
                         self.buttons_state = 0;
                     }
                 }
-                MonitorState::PowerFocused => {
-                    self.buttons_state = (self.buttons_state << 1) ^ u64::from(power_pressed);
+                MonitorState::Focused(kind) => {
+                    let (button_pressed, short_press_fn_opt, long_press_fn_opt) = match kind {
+                        MonitorFocusKind::Power => {
+                            (power_pressed, Some(DeviceState::toggle_power), None)
+                        }
+                        MonitorFocusKind::Leds => {
+                            (led_pressed, None, Some(DeviceState::toggle_leds))
+                        }
+                    };
+
+                    self.buttons_state = (self.buttons_state << 1) ^ u64::from(button_pressed);
 
                     if self.buttons_history < 21 {
                         if self.buttons_state == u64::MAX {
@@ -151,39 +159,19 @@ impl MonitorContext {
                             self.buttons_history += 1;
                         }
                         // Short press triggered
-                        else if !power_pressed {
+                        else if !button_pressed {
                             self.monitor_state = MonitorState::Paused;
-
-                            shared_state.send_state = true;
-                            shared_state.device_state.power_enabled =
-                                !shared_state.device_state.power_enabled;
+                            if let Some(short_press_fn) = short_press_fn_opt {
+                                shared_state.write_device_state(short_press_fn);
+                            }
                         }
                     }
                     // Long press triggered
                     else if self.buttons_state == 0x00FF_FFFF_FFFF_FFFF {
                         self.monitor_state = MonitorState::Paused;
-                    }
-                }
-                MonitorState::LedFocused => {
-                    self.buttons_state = (self.buttons_state << 1) ^ u64::from(led_pressed);
-
-                    if self.buttons_history < 21 {
-                        if self.buttons_state == u64::MAX {
-                            self.buttons_state = 0;
-                            self.buttons_history += 1;
+                        if let Some(long_press_fn) = long_press_fn_opt {
+                            shared_state.write_device_state(long_press_fn);
                         }
-                        // Short press triggered
-                        else if !led_pressed {
-                            self.monitor_state = MonitorState::Paused;
-                        }
-                    }
-                    // Long press triggered
-                    else if self.buttons_state == 0x00FF_FFFF_FFFF_FFFF {
-                        self.monitor_state = MonitorState::Paused;
-                        shared_state.send_state = true;
-
-                        shared_state.device_state.leds_enabled =
-                            !shared_state.device_state.leds_enabled;
                     }
                 }
             }

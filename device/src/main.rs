@@ -16,7 +16,7 @@ use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
 use panic_halt as _;
 use shared::{Command, FanSpeed};
-use shared_state::{SHARED_STATE, SharedState};
+use shared_state::SHARED_STATE;
 use timed_monitor::setup_timed_monitor;
 use usb::setup_usb;
 
@@ -73,19 +73,17 @@ fn main() -> ! {
 
     loop {
         let command = interrupt::free(|cs| {
-            let SharedState {
-                device_state,
-                command_queue,
-                ..
-            } = &mut *SHARED_STATE.borrow(cs).borrow_mut();
+            let shared_state = &mut *SHARED_STATE.borrow(cs).borrow_mut();
+            let power_enabled = shared_state.device_state().power_enabled();
+            let leds_enabled = shared_state.device_state().leds_enabled();
 
             // Omit commands that are inconsistent with the current state.
             loop {
-                break match command_queue.pop_back() {
-                    Some(Command::PowerOn) if device_state.power_enabled => continue,
-                    Some(Command::PowerOff) if !device_state.power_enabled => continue,
-                    Some(Command::LedsOn) if device_state.leds_enabled => continue,
-                    Some(Command::LedsOff) if !device_state.leds_enabled => continue,
+                break match shared_state.pop_command() {
+                    Some(Command::PowerOn) if power_enabled => continue,
+                    Some(Command::PowerOff) if !power_enabled => continue,
+                    Some(Command::LedsOn) if leds_enabled => continue,
+                    Some(Command::LedsOff) if !leds_enabled => continue,
                     command => command,
                 };
             }

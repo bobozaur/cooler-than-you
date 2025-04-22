@@ -1,6 +1,6 @@
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
-#[cfg_attr(test, derive(strum::EnumIter, PartialEq))]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FanSpeed {
     Speed1,
     Speed2,

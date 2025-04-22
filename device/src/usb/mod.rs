@@ -99,12 +99,10 @@ impl UsbContext {
         interrupt::free(|cs| {
             let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
 
-            if shared_state.send_state {
-                if let Ok(1) = self
-                    .hid_class
-                    .push_raw_input(&[shared_state.device_state.into()])
-                {
-                    shared_state.send_state = false;
+            if shared_state.send_state() {
+                let device_state = *shared_state.device_state();
+                if let Ok(1) = self.hid_class.push_raw_input(&[device_state.into()]) {
+                    shared_state.mark_state_as_sent();
                 }
             }
 
@@ -113,7 +111,7 @@ impl UsbContext {
 
                 if self.hid_class.pull_raw_output(&mut report_buf).is_ok() {
                     if let Ok(command) = report_buf[0].try_into() {
-                        shared_state.command_queue.push_front(command);
+                        shared_state.push_command(command);
                     }
                 }
             }

@@ -29,14 +29,12 @@ impl<PIN> Button<PIN>
 where
     PIN: ShortPressPin,
 {
-    const POST_PRESS_DELAY: u16 = 5;
-
     #[inline]
     pub fn short_press(&mut self) {
         self.0.set_high();
-        delay_ms(45);
+        delay_ms(40 + PIN::SHORT_PRESS_EXCESS);
         self.0.set_low();
-        delay_ms(Self::POST_PRESS_DELAY);
+        delay_ms(PIN::POST_PRESS_DELAY);
     }
 }
 
@@ -47,8 +45,8 @@ where
     #[inline]
     pub fn long_press(&mut self) {
         self.0.set_high();
-        delay_ms(1400);
+        delay_ms(1400 + PIN::LONG_PRESS_EXCESS);
         self.0.set_low();
-        delay_ms(Self::POST_PRESS_DELAY);
+        delay_ms(PIN::POST_PRESS_DELAY);
     }
 }

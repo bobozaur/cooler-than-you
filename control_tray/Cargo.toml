@@ -1,5 +1,5 @@
 [package]
-name = "driver"
+name = "control_tray"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
@@ -12,6 +12,8 @@ shared = { workspace = true }
 # External
 anyhow = { workspace = true }
 itertools = { workspace = true }
+libappindicator = { workspace = true }
+gtk = { workspace = true }
 rusb = { workspace = true }
 
 [lints]

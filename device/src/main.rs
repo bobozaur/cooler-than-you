@@ -1,9 +1,6 @@
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
-#![allow(internal_features)]
-#![feature(panic_internals)]
-#![feature(const_format_args)]
 
 mod button;
 mod interrupt_cell;

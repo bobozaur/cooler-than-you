@@ -1,10 +1,12 @@
+use thiserror::Error as ThisError;
+
 /// Commands that the device can execute.
 ///
 /// While the power and LED buttons are in fact toggles, separating
 /// them makes it easier to reason about what to do depending on the
 /// current device state.
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(test, derive(strum::EnumIter, PartialEq))]
 pub enum Command {
     // Short press on `+` button.
@@ -52,7 +54,7 @@ impl From<Command> for u8 {
 }
 
 impl TryFrom<u8> for Command {
-    type Error = ();
+    type Error = CommandConvError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -64,10 +66,15 @@ impl TryFrom<u8> for Command {
             5 => Ok(Command::LedsOff),
             6 => Ok(Command::DelayedLedsOff),
             7 => Ok(Command::LedsColorChange),
-            _ => Err(()),
+            _ => Err(CommandConvError),
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, ThisError)]
+#[cfg_attr(test, derive(PartialEq))]
+#[error("integer to command conversion failed")]
+pub struct CommandConvError;
 
 #[cfg(test)]
 mod tests {

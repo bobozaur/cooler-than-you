@@ -1,63 +1,83 @@
 use std::{thread, time::Duration};
 
-use rusb::{Context, Error, UsbContext};
-use shared::DeviceState;
+use anyhow::{Context as _, Result as AnyResult, anyhow, bail};
+use itertools::Itertools;
+use rusb::{Context, Direction, Error, TransferType, UsbContext};
+use shared::{Command, DeviceState, USB_PID, USB_VID};
 
-fn main() {
-    let device = Context::new()
-        .expect("unable to initialize libusb")
+fn main() -> AnyResult<()> {
+    let (device, device_desc) = Context::new()
+        .context("unable to initialize libusb")?
         .devices()
-        .expect("unable to enumerate devices")
+        .context("unable to enumerate devices")?
         .iter()
-        .find_map(|device| {
-            let desc = device.device_descriptor().ok()?;
-            (desc.vendor_id() == 0xd016 && desc.product_id() == 0xdb08).then_some(device)
-        })
-        .expect("no matching device found");
+        .filter_map(|device| device.device_descriptor().ok().map(|desc| (device, desc)))
+        .filter(|(_, desc)| desc.vendor_id() == USB_VID && desc.product_id() == USB_PID)
+        .exactly_one()
+        .map_err(|err| anyhow!("found {} device descriptors", err.count()))?;
 
-    for interface in device.active_config_descriptor().unwrap().interfaces() {
-        for idesc in interface.descriptors() {
-            println!("Interface descriptor: {idesc:?}");
+    let config_desc = (0..device_desc.num_configurations())
+        .filter_map(|i| device.config_descriptor(i).ok())
+        .exactly_one()
+        .map_err(|err| anyhow!("found {} config descriptors", err.count()))?;
 
-            for edesc in idesc.endpoint_descriptors() {
-                println!(
-                    "Endpoint descriptor: {}:{:?}:{:?} - {edesc:?}",
-                    edesc.number(),
-                    edesc.direction(),
-                    edesc.transfer_type()
-                );
-            }
-        }
-    }
+    let interface_desc = config_desc
+        .interfaces()
+        .flat_map(|i| i.descriptors())
+        .exactly_one()
+        .map_err(|err| anyhow!("found {} interface descriptors", err.count()))?;
 
-    let handle = device.open().expect("unable to open device");
-    handle.set_auto_detach_kernel_driver(true).unwrap();
-    handle.claim_interface(0).unwrap();
-    handle.set_alternate_setting(0, 0).unwrap();
+    let in_endpoint_desc = interface_desc
+        .endpoint_descriptors()
+        .filter(|edesc| edesc.direction() == Direction::In)
+        .filter(|edesc| edesc.transfer_type() == TransferType::Interrupt)
+        .exactly_one()
+        .map_err(|err| anyhow!("found {} IN interrupt endpoint descriptors", err.count()))?;
+
+    let out_endpoint_desc = interface_desc
+        .endpoint_descriptors()
+        .filter(|edesc| edesc.direction() == Direction::Out)
+        .filter(|edesc| edesc.transfer_type() == TransferType::Interrupt)
+        .exactly_one()
+        .map_err(|err| anyhow!("found {} OUT interrupt endpoint descriptors", err.count()))?;
+
+    let handle = device.open()?;
+    handle.set_auto_detach_kernel_driver(true)?;
 
     let mut buf = [0; 1];
 
     loop {
-        handle.claim_interface(0).unwrap();
-        handle.set_alternate_setting(0, 0).unwrap();
+        handle.claim_interface(interface_desc.interface_number())?;
+        handle.set_alternate_setting(
+            interface_desc.interface_number(),
+            interface_desc.setting_number(),
+        )?;
 
-        match handle.read_interrupt(130, &mut buf, Duration::from_millis(500)) {
-            Ok(_) => println!("State: {:?}", DeviceState::try_from(buf[0]).unwrap()),
+        match handle.read_interrupt(
+            in_endpoint_desc.address(),
+            &mut buf,
+            Duration::from_millis(500),
+        ) {
+            Ok(1) => {
+                let device_state = DeviceState::try_from(buf[0])?;
+                println!("State: {device_state:?}");
+            }
+            Ok(n) => bail!("unexpected amount of {n} bytes read"),
             Err(Error::Timeout) => (),
+            Err(e) => bail!(e),
+        }
+
+        match handle.write_interrupt(
+            out_endpoint_desc.address(),
+            &[Command::LedsColorChange.into()],
+            Duration::from_millis(500),
+        ) {
+            Ok(n) => println!("Wrote {n} bytes"),
             Err(e) => panic!("{e}"),
         }
 
-        // match handle.write_interrupt(
-        //     1,
-        //     &[Command::LedsColorChange.into()],
-        //     Duration::from_millis(500),
-        // ) {
-        //     Ok(n) => println!("Wrote {n} bytes"),
-        //     Err(e) => panic!("{e}"),
-        // }
-
         handle.release_interface(0).unwrap();
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(500));
     }
 }

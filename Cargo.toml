@@ -8,19 +8,24 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+# Internal
 shared = { path = "shared" }
 
-strum = { version = "0.27", default-features = false, features = ["derive"] }
-rusb = { version = "0.9", default-features = false }
-usbd-hid = { version = "0.8", default-features = false }
-panic-halt = { version = "0.2", default-features = false }
-avr-device = { version = "0.5", default-features = false }
-usb-device = { version = "0.3", default-features = false }
-circular-buffer = { version = "1", default-features = false }
+# External
+anyhow = { version = "1", default-features = false, features = ["std"] }
 arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf60870bcfc9f50395a528dc101", default-features = false, features = [
     "arduino-leonardo",
     "rt",
 ] }
+avr-device = { version = "0.5", default-features = false }
+circular-buffer = { version = "1", default-features = false }
+itertools = { version = "0.14", default-features = false }
+panic-halt = { version = "0.2", default-features = false }
+rusb = { version = "0.9", default-features = false }
+strum = { version = "0.27", default-features = false, features = ["derive"] }
+thiserror = { version = "2", default-features = false }
+usbd-hid = { version = "0.8", default-features = false }
+usb-device = { version = "0.3", default-features = false }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

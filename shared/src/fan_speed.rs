@@ -1,5 +1,7 @@
+use thiserror::Error as ThisError;
+
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FanSpeed {
     Speed1,
@@ -17,15 +19,13 @@ impl FanSpeed {
             FanSpeed::Speed2 => FanSpeed::Speed3,
             FanSpeed::Speed3 => FanSpeed::Speed4,
             FanSpeed::Speed4 => FanSpeed::Speed5,
-            FanSpeed::Speed5 => FanSpeed::Speed6,
-            FanSpeed::Speed6 => FanSpeed::Speed6,
+            FanSpeed::Speed5 | FanSpeed::Speed6 => FanSpeed::Speed6,
         };
     }
 
     pub fn decrease(&mut self) {
         *self = match self {
-            FanSpeed::Speed1 => FanSpeed::Speed1,
-            FanSpeed::Speed2 => FanSpeed::Speed1,
+            FanSpeed::Speed1 | FanSpeed::Speed2 => FanSpeed::Speed1,
             FanSpeed::Speed3 => FanSpeed::Speed2,
             FanSpeed::Speed4 => FanSpeed::Speed3,
             FanSpeed::Speed5 => FanSpeed::Speed4,
@@ -41,7 +41,7 @@ impl From<FanSpeed> for u8 {
 }
 
 impl TryFrom<u8> for FanSpeed {
-    type Error = ();
+    type Error = FanSpeedConvError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -51,10 +51,15 @@ impl TryFrom<u8> for FanSpeed {
             3 => Ok(FanSpeed::Speed4),
             4 => Ok(FanSpeed::Speed5),
             5 => Ok(FanSpeed::Speed6),
-            _ => Err(()),
+            _ => Err(FanSpeedConvError),
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, ThisError)]
+#[cfg_attr(test, derive(PartialEq))]
+#[error("integer to fan speed conversion failed")]
+pub struct FanSpeedConvError;
 
 #[cfg(test)]
 mod tests {

@@ -5,6 +5,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[dependencies]
+# External
+thiserror = { workspace = true }
+
 [dev-dependencies]
 # External
 strum = { workspace = true }

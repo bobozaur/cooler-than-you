@@ -8,6 +8,7 @@ use arduino_hal::{
 };
 use avr_device::interrupt;
 use hid_report::HidReport;
+use shared::{USB_PID, USB_VID};
 use suspender::Suspender;
 use usb_device::{
     LangID,
@@ -45,7 +46,7 @@ pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
         .product("Than You");
 
     let hid_class = HIDClass::new(usb_bus, HidReport::desc(), 1);
-    let usb_device = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0xd016, 0xdb08))
+    let usb_device = UsbDeviceBuilder::new(usb_bus, UsbVidPid(USB_VID, USB_PID))
         .strings(&[strings])
         .unwrap()
         .max_power(500)

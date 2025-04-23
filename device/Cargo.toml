@@ -15,12 +15,12 @@ bench = false
 shared = { workspace = true }
 
 # External
-usbd-hid = { workspace = true }
-panic-halt = { workspace = true }
-avr-device = { workspace = true }
-usb-device = { workspace = true }
-circular-buffer = { workspace = true }
 arduino-hal = { workspace = true }
+avr-device = { workspace = true }
+circular-buffer = { workspace = true }
+panic-halt = { workspace = true }
+usbd-hid = { workspace = true }
+usb-device = { workspace = true }
 
 [lints]
 workspace = true

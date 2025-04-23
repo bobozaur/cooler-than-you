@@ -1,6 +1,8 @@
-use crate::fan_speed::FanSpeed;
+use thiserror::Error as ThisError;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+use crate::fan_speed::{FanSpeed, FanSpeedConvError};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DeviceState {
     fan_speed: FanSpeed,
     power_enabled: bool,
@@ -57,8 +59,18 @@ impl DeviceState {
     }
 }
 
+impl From<DeviceState> for u8 {
+    fn from(state: DeviceState) -> Self {
+        let power_enabled = u8::from(state.power_enabled) << 7;
+        let leds_enabled = u8::from(state.leds_enabled) << 6;
+        let fan_speed = state.fan_speed as u8;
+
+        power_enabled | leds_enabled | fan_speed
+    }
+}
+
 impl TryFrom<u8> for DeviceState {
-    type Error = ();
+    type Error = DeviceStateConvError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let power_enabled = value & 0b1000_0000 != 0;
@@ -73,12 +85,7 @@ impl TryFrom<u8> for DeviceState {
     }
 }
 
-impl From<DeviceState> for u8 {
-    fn from(state: DeviceState) -> Self {
-        let power_enabled = u8::from(state.power_enabled) << 7;
-        let leds_enabled = u8::from(state.leds_enabled) << 6;
-        let fan_speed = state.fan_speed as u8;
-
-        power_enabled | leds_enabled | fan_speed
-    }
-}
+#[derive(Clone, Copy, Debug, ThisError)]
+#[cfg_attr(test, derive(PartialEq))]
+#[error("integer to command conversion failed")]
+pub struct DeviceStateConvError(#[from] FanSpeedConvError);

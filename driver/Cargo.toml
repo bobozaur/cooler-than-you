@@ -10,6 +10,8 @@ license.workspace = true
 shared = { workspace = true }
 
 # External
+anyhow = { workspace = true }
+itertools = { workspace = true }
 rusb = { workspace = true }
 
 [lints]

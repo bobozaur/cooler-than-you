@@ -119,13 +119,13 @@ impl MonitorContext {
                             self.monitor_state = MonitorState::Paused;
 
                             if backlight_active {
-                                shared_state.write_device_state(DeviceState::increase_fan_speed);
+                                shared_state.update_device_state(DeviceState::increase_fan_speed);
                             }
                         } else if speed_down_pressed {
                             self.monitor_state = MonitorState::Paused;
 
                             if backlight_active {
-                                shared_state.write_device_state(DeviceState::decrease_fan_speed);
+                                shared_state.update_device_state(DeviceState::decrease_fan_speed);
                             }
                         } else if power_pressed {
                             self.monitor_state = MonitorState::Focused(MonitorFocusKind::Power);
@@ -162,7 +162,7 @@ impl MonitorContext {
                         else if !button_pressed {
                             self.monitor_state = MonitorState::Paused;
                             if let Some(short_press_fn) = short_press_fn_opt {
-                                shared_state.write_device_state(short_press_fn);
+                                shared_state.update_device_state(short_press_fn);
                             }
                         }
                     }
@@ -170,7 +170,7 @@ impl MonitorContext {
                     else if self.buttons_state == 0x00FF_FFFF_FFFF_FFFF {
                         self.monitor_state = MonitorState::Paused;
                         if let Some(long_press_fn) = long_press_fn_opt {
-                            shared_state.write_device_state(long_press_fn);
+                            shared_state.update_device_state(long_press_fn);
                         }
                     }
                 }

@@ -44,6 +44,16 @@ where
 {
     #[inline]
     pub fn long_press(&mut self) {
+        // This is here because on device unplug a USB suspend gets triggered which  sends
+        // [`Command::LedsOff`] to the main function.
+        //
+        // However, power runs out way before the long press is achieved, effectivelly triggering a
+        // short press instead, changing LEDs color.
+        //
+        // So, to accommodate the USB suspend code, we wait a bit before triggering the long press,
+        // ensuring that if the device is unplugged power runs out before any button press
+        // is triggered.
+        delay_ms(250);
         self.0.set_high();
         delay_ms(1400 + PIN::LONG_PRESS_EXCESS);
         self.0.set_low();

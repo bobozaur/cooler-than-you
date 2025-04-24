@@ -87,5 +87,5 @@ impl TryFrom<u8> for DeviceState {
 
 #[derive(Clone, Copy, Debug, ThisError)]
 #[cfg_attr(test, derive(PartialEq))]
-#[error("integer to command conversion failed")]
+#[error("integer to device state conversion failed")]
 pub struct DeviceStateConvError(#[from] FanSpeedConvError);

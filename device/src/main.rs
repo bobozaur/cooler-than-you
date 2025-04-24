@@ -8,7 +8,7 @@ mod shared_state;
 mod timed_monitor;
 mod usb;
 
-use arduino_hal::{Pins, delay_ms};
+use arduino_hal::Pins;
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
 use panic_halt as _;
@@ -92,12 +92,6 @@ fn main() -> ! {
             Some(Command::PowerOn | Command::PowerOff) => power_btn.short_press(),
             Some(Command::LedsOn | Command::LedsOff) => led_btn.long_press(),
             Some(Command::LedsColorChange) => led_btn.short_press(),
-            // Used in the USB suspend code. Check the variant docs
-            // for more info.
-            Some(Command::DelayedLedsOff) => {
-                delay_ms(250);
-                led_btn.long_press();
-            }
             None => sleep(),
         }
     }

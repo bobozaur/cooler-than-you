@@ -5,11 +5,12 @@ use circular_buffer::CircularBuffer;
 use shared::{Command, DeviceState};
 
 pub static SHARED_STATE: Mutex<RefCell<SharedState>> = Mutex::new(RefCell::new(SharedState::new()));
+const COMMAND_QUEUE_SIZE: usize = 64;
 
 pub struct SharedState {
     device_state: DeviceState,
     send_state: bool,
-    command_queue: CircularBuffer<32, Command>,
+    command_queue: CircularBuffer<COMMAND_QUEUE_SIZE, Command>,
 }
 
 impl SharedState {
@@ -22,28 +23,27 @@ impl SharedState {
     }
 
     #[inline]
-    pub fn write_device_state<F>(&mut self, f: F)
+    pub fn update_device_state<F>(&mut self, f: F)
     where
         F: FnOnce(&mut DeviceState),
     {
-        let previous_device_state = self.device_state;
         f(&mut self.device_state);
-        self.send_state = previous_device_state != self.device_state;
+        self.send_state = true;
+    }
+
+    #[inline]
+    pub fn if_send_state<F>(&mut self, f: F)
+    where
+        F: FnOnce() -> bool,
+    {
+        if self.send_state && f() {
+            self.send_state = false;
+        }
     }
 
     #[inline]
     pub fn device_state(&self) -> &DeviceState {
         &self.device_state
-    }
-
-    #[inline]
-    pub fn send_state(&self) -> bool {
-        self.send_state
-    }
-
-    #[inline]
-    pub fn mark_state_as_sent(&mut self) {
-        self.send_state = false;
     }
 
     #[inline]

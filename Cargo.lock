@@ -202,18 +202,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23bdce1da528cadbac4654b5632bfcd8c6c63e25b1d42cea919a95958790b51d"
 
 [[package]]
-name = "control_tray"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "gtk",
- "itertools",
- "libappindicator",
- "rusb",
- "shared",
-]
-
-[[package]]
 name = "critical-section"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1088,6 +1076,18 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "tray"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gtk",
+ "itertools",
+ "libappindicator",
+ "rusb",
+ "shared",
 ]
 
 [[package]]

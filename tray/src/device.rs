@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
@@ -9,12 +9,16 @@ use crate::AnyResult;
 
 #[derive(Clone, Debug)]
 pub struct Device {
-    handle: Arc<DeviceHandle<Context>>,
+    handle: Rc<DeviceHandle<Context>>,
+    interface_number: u8,
+    setting_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
 }
 
 impl Device {
+    ///
+    /// # Errors
     pub fn new() -> AnyResult<Self> {
         let (device, device_desc) = Context::new()
             .context("unable to initialize libusb")?
@@ -57,23 +61,37 @@ impl Device {
             .context("OUT interrupt endpoint descriptor")?;
 
         let handle = device.open()?;
-        handle.set_auto_detach_kernel_driver(true)?;
-        handle.unconfigure()?;
-        handle.set_active_configuration(config_desc.number())?;
-        handle.claim_interface(interface_desc.interface_number())?;
-        handle.set_alternate_setting(
-            interface_desc.interface_number(),
-            interface_desc.setting_number(),
-        )?;
+
+        if handle.kernel_driver_active(interface_desc.interface_number())? {
+            handle.detach_kernel_driver(interface_desc.interface_number())?;
+        }
+
+        handle
+            .set_active_configuration(config_desc.number())
+            .context("setting config number")?;
 
         Ok(Self {
-            handle: Arc::new(handle),
+            handle: Rc::new(handle),
+            interface_number: interface_desc.interface_number(),
+            setting_number: interface_desc.setting_number(),
             in_endpoint_address: in_endpoint_desc.address(),
             out_endpoint_address: out_endpoint_desc.address(),
         })
     }
 
+    ///
+    /// # Errors
     pub fn recv_state(&self) -> AnyResult<Option<DeviceState>> {
+        self.operate(|| self.recv_state_impl())
+    }
+
+    ///
+    /// # Errors
+    pub fn send_command(&self, command: Command) -> AnyResult<()> {
+        self.operate(|| self.send_command_impl(command))
+    }
+
+    fn recv_state_impl(&self) -> AnyResult<Option<DeviceState>> {
         let mut buf = [0; 1];
 
         let res = self.handle.read_interrupt(
@@ -91,7 +109,7 @@ impl Device {
         Ok(Some(state))
     }
 
-    pub fn send_commnad(&self, command: Command) -> AnyResult<()> {
+    fn send_command_impl(&self, command: Command) -> AnyResult<()> {
         self.handle.write_interrupt(
             self.out_endpoint_address,
             &[command.into()],
@@ -99,5 +117,33 @@ impl Device {
         )?;
 
         Ok(())
+    }
+
+    fn operate<F, T>(&self, f: F) -> AnyResult<T>
+    where
+        F: FnOnce() -> AnyResult<T>,
+    {
+        self.handle
+            .claim_interface(self.interface_number)
+            .context("claiming interface")?;
+        self.handle
+            .set_alternate_setting(self.interface_number, self.setting_number)
+            .context("choosing alternate setting")?;
+
+        let res = f();
+
+        self.handle
+            .release_interface(self.interface_number)
+            .context("releasing interface")?;
+
+        res
+    }
+}
+
+impl Drop for Device {
+    fn drop(&mut self) {
+        if let Ok(false) = self.handle.kernel_driver_active(self.interface_number) {
+            self.handle.attach_kernel_driver(self.interface_number).ok();
+        }
     }
 }

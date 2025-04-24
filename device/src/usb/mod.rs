@@ -99,13 +99,10 @@ impl UsbContext {
     fn poll_com(&mut self) {
         interrupt::free(|cs| {
             let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
+            let device_state = *shared_state.device_state();
 
-            if shared_state.send_state() {
-                let device_state = *shared_state.device_state();
-                if let Ok(1) = self.hid_class.push_raw_input(&[device_state.into()]) {
-                    shared_state.mark_state_as_sent();
-                }
-            }
+            let send_state_fn = || self.hid_class.push_raw_input(&[device_state.into()]) == Ok(1);
+            shared_state.if_send_state(send_state_fn);
 
             if self.usb_device.poll(&mut [&mut self.hid_class]) {
                 let mut report_buf = [0u8; 1];

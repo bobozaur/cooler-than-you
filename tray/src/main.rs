@@ -6,15 +6,26 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 use shared::Command;
 use tray::{AnyResult, Device};
 
+// background thread
+// - checks temp and adjusts speed (if enabled) (needs Device)
+// -
+
 #[allow(clippy::too_many_lines)]
 fn main() -> AnyResult<()> {
-    let device = Device::new()?;
+    let device = loop {
+        if let Ok(device) = Device::new() {
+            break device;
+        }
+    };
 
     loop {
-        if let Some(state) = device.recv_state()? {
-            println!("{state:?}");
-        }
+        device.send_command(Command::SpeedUp).context("write")?;
+        thread::sleep(Duration::from_secs(3));
+        println!("{:?}", device.recv_state().context("read"));
     }
+
+    device.send_command(Command::PowerOff)?;
+    device.send_command(Command::PowerOn)?;
 
     let mut device_state_opt = None;
 

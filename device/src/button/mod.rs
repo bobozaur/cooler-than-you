@@ -53,7 +53,7 @@ where
         // So, to accommodate the USB suspend code, we wait a bit before triggering the long press,
         // ensuring that if the device is unplugged power runs out before any button press
         // is triggered.
-        delay_ms(250);
+        delay_ms(275);
         self.0.set_high();
         delay_ms(1400 + PIN::LONG_PRESS_EXCESS);
         self.0.set_low();

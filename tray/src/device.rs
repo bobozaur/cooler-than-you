@@ -110,11 +110,17 @@ impl Device {
     }
 
     fn send_command_impl(&self, command: Command) -> AnyResult<()> {
-        self.handle.write_interrupt(
+        // self.handle.reset()?;
+
+        let written = self.handle.write_interrupt(
             self.out_endpoint_address,
             &[command.into()],
             Duration::from_millis(500),
         )?;
+
+        if written != 1 {
+            anyhow::bail!("command not written");
+        }
 
         Ok(())
     }

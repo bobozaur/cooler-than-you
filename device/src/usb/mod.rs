@@ -101,16 +101,20 @@ impl UsbContext {
             let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
             let device_state = *shared_state.device_state();
 
-            let send_state_fn = || self.hid_class.push_raw_input(&[device_state.into()]) == Ok(1);
-            shared_state.if_send_state(send_state_fn);
+            if !self.usb_device.poll(&mut [&mut self.hid_class]) {
+                return;
+            }
 
-            if self.usb_device.poll(&mut [&mut self.hid_class]) {
-                let mut report_buf = [0u8; 1];
+            shared_state.if_send_state(|| {
+                let res = self.hid_class.push_raw_input(&[device_state.into()]);
+                matches!(res, Ok(1))
+            });
 
-                if self.hid_class.pull_raw_output(&mut report_buf).is_ok() {
-                    if let Ok(command) = report_buf[0].try_into() {
-                        shared_state.push_command(command);
-                    }
+            let mut report_buf = [0u8; 1];
+
+            if let Ok(1) = self.hid_class.pull_raw_output(&mut report_buf) {
+                if let Ok(command) = report_buf[0].try_into() {
+                    shared_state.push_command(command);
                 }
             }
         });

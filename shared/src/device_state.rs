@@ -11,7 +11,7 @@ pub struct DeviceState {
     power_enabled: bool,
     leds_enabled: bool,
     fan_speed: FanSpeed,
-    repeat_command: Option<Command>,
+    command_to_repeat: Option<Command>,
 }
 
 impl PartialEq for DeviceState {
@@ -30,7 +30,7 @@ impl DeviceState {
             power_enabled: true,
             leds_enabled: true,
             fan_speed: FanSpeed::Speed1,
-            repeat_command: None,
+            command_to_repeat: None,
         }
     }
 
@@ -53,13 +53,9 @@ impl DeviceState {
     }
 
     #[inline]
-    pub fn increase_fan_speed(&mut self) {
-        self.fan_speed.increase();
-    }
-
-    #[inline]
-    pub fn decrease_fan_speed(&mut self) {
-        self.fan_speed.decrease();
+    #[must_use]
+    pub fn command_to_repeat(&self) -> Option<Command> {
+        self.command_to_repeat
     }
 
     #[inline]
@@ -73,9 +69,18 @@ impl DeviceState {
     }
 
     #[inline]
-    #[must_use]
-    pub fn repeat_command(&self) -> Option<Command> {
-        self.repeat_command
+    pub fn increase_fan_speed(&mut self) {
+        self.fan_speed.increase();
+    }
+
+    #[inline]
+    pub fn decrease_fan_speed(&mut self) {
+        self.fan_speed.decrease();
+    }
+
+    #[inline]
+    pub fn repeat_command(&mut self, command: Command) {
+        self.command_to_repeat = Some(command);
     }
 }
 
@@ -84,9 +89,9 @@ impl From<DeviceState> for u8 {
         let power_enabled = u8::from(state.power_enabled) << 7;
         let leds_enabled = u8::from(state.leds_enabled) << 6;
         let fan_speed = u8::from(state.fan_speed) << 3;
-        let repeat_command_byte = state.repeat_command.map(u8::from).unwrap_or_default();
+        let command_to_repeat_byte = state.command_to_repeat.map(u8::from).unwrap_or_default();
 
-        power_enabled | leds_enabled | fan_speed | repeat_command_byte
+        power_enabled | leds_enabled | fan_speed | command_to_repeat_byte
     }
 }
 
@@ -97,17 +102,17 @@ impl TryFrom<u8> for DeviceState {
         let power_enabled = value & 0b1000_0000 != 0;
         let leds_enabled = value & 0b0100_0000 != 0;
         let fan_speed = (value & 0b0011_1000).try_into()?;
-        let repeat_command_byte = value & 0b0000_0111;
+        let command_to_repeat_byte = value & 0b0000_0111;
 
-        let repeat_command = (repeat_command_byte != 0)
-            .then(|| Command::try_from(repeat_command_byte))
+        let repeat_command = (command_to_repeat_byte != 0)
+            .then(|| Command::try_from(command_to_repeat_byte))
             .transpose()?;
 
         Ok(Self {
             power_enabled,
             leds_enabled,
             fan_speed,
-            repeat_command,
+            command_to_repeat: repeat_command,
         })
     }
 }

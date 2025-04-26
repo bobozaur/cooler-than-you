@@ -1,169 +1,128 @@
 use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 
-use anyhow::Context;
-use gtk::prelude::*;
+use gtk::{CheckMenuItem, MenuItem, glib::MainContext, prelude::*};
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use shared::Command;
-use tray::{AnyResult, Device};
-
-// background thread
-// - checks temp and adjusts speed (if enabled) (needs Device)
-// -
+use tray::{AnyResult, Cooler, MenuItems, track_state};
 
 #[allow(clippy::too_many_lines)]
 fn main() -> AnyResult<()> {
-    let device = loop {
-        if let Ok(device) = Device::new() {
-            break device;
+    let mut attempts: u8 = 10;
+    let cooler = loop {
+        match Cooler::new() {
+            Ok(cooler) => break Rc::new(cooler),
+            Err(e) if attempts == 0 => Err(e)?,
+            Err(_) => {
+                thread::sleep(Duration::from_secs(1));
+                attempts -= 1;
+            }
         }
     };
 
-    loop {
-        device.send_command(Command::SpeedUp).context("write")?;
-        thread::sleep(Duration::from_secs(3));
-        println!("{:?}", device.recv_state().context("read"));
-    }
+    cooler.send_command(Command::PowerOn)?;
+    cooler.send_command(Command::PowerOff)?;
 
-    device.send_command(Command::PowerOff)?;
-    device.send_command(Command::PowerOn)?;
-
-    let mut device_state_opt = None;
-
-    while let Some(state) = device.recv_state()? {
-        device_state_opt = Some(state);
-    }
-
-    let device_state = Rc::new(RefCell::new(
-        device_state_opt.context("device state not received on startup")?,
-    ));
+    let mut attempts: u8 = 10;
+    let device_state = loop {
+        match cooler.recv_state() {
+            Ok(state) => break state,
+            Err(e) if attempts == 0 => Err(e)?,
+            Err(_) => {
+                thread::sleep(Duration::from_millis(100));
+                attempts -= 1;
+            }
+        }
+    };
 
     gtk::init()?;
 
-    let speed_up_mi = gtk::MenuItem::with_label("Increase speed");
-    let speed_down_mi = gtk::MenuItem::with_label("Decrease speed");
-    let color_mi = gtk::MenuItem::with_label("Change color");
-    let led_mi = gtk::CheckMenuItem::with_label("Lights");
-    let power_mi = gtk::CheckMenuItem::with_label("Power");
-    let quit_mi = gtk::MenuItem::with_label("Quit");
+    let speed_up_mi = MenuItem::with_label("Increase speed");
+    let speed_down_mi = MenuItem::with_label("Decrease speed");
+    let color_mi = MenuItem::with_label("Change color");
+    let power_mi = CheckMenuItem::with_label("Power");
+    let led_mi = CheckMenuItem::with_label("Lights");
+    let quit_mi = MenuItem::with_label("Quit");
 
-    let device_state_ref = device_state.borrow();
-    led_mi.set_active(device_state_ref.leds_enabled());
-    power_mi.set_active(device_state_ref.power_enabled());
+    let menu_items = Rc::new(MenuItems {
+        speed_up_mi,
+        speed_down_mi,
+        color_mi,
+        power_mi,
+        led_mi,
+    });
 
-    speed_up_mi.connect_activate({
-        let device = device.clone();
-        let device_state = device_state.clone();
+    menu_items.led_mi.set_active(device_state.leds_enabled());
+    menu_items.power_mi.set_active(device_state.power_enabled());
 
-        move |mi| {
-            mi.set_sensitive(false);
+    menu_items.speed_up_mi.connect_activate({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
 
-            let mut device_state = device_state.borrow_mut();
-
-            loop {
-                while device.send_command(Command::SpeedUp).is_err() {}
-
-                let Ok(Some(state)) = device.recv_state() else {
-                    continue;
-                };
-
-                if *device_state != state {
-                    *device_state = state;
-                    break;
-                }
+        move |_| {
+            menu_items.set_sensitive(false);
+            if cooler.send_command(Command::SpeedUp).is_err() {
+                menu_items.set_sensitive(true);
             }
-
-            mi.set_sensitive(true);
         }
     });
+    menu_items.speed_down_mi.connect_activate({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
 
-    speed_down_mi.connect_activate({
-        let device = device.clone();
-        let device_state = device_state.clone();
-
-        move |mi| {
-            mi.set_sensitive(false);
-
-            let mut device_state = device_state.borrow_mut();
-
-            loop {
-                while device.send_command(Command::SpeedDown).is_err() {}
-
-                let Ok(Some(state)) = device.recv_state() else {
-                    continue;
-                };
-
-                if *device_state != state {
-                    *device_state = state;
-                    break;
-                }
+        move |_| {
+            menu_items.set_sensitive(false);
+            if cooler.send_command(Command::SpeedDown).is_err() {
+                menu_items.set_sensitive(true);
             }
-
-            mi.set_sensitive(true);
         }
     });
+    menu_items.color_mi.connect_activate({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
 
-    color_mi.connect_activate({
-        let device = device.clone();
-
-        move |mi| {
-            mi.set_sensitive(false);
-            while device.send_command(Command::LedsColorChange).is_err() {}
-            while let Ok(None) | Err(_) = device.recv_state() {}
-            mi.set_sensitive(true);
+        move |_| {
+            menu_items.set_sensitive(false);
+            if cooler.send_command(Command::LedsColorChange).is_err() {
+                menu_items.set_sensitive(true);
+            }
         }
     });
-
-    led_mi.connect_toggled({
-        let device = device.clone();
-        let device_state = device_state.clone();
+    menu_items.power_mi.connect_toggled({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
 
         move |mi| {
-            mi.set_sensitive(false);
-
+            menu_items.set_sensitive(false);
             let command = if mi.is_active() {
-                Command::LedsOn
-            } else {
-                Command::LedsOff
-            };
-
-            while device.send_command(command).is_err() {}
-
-            if let Ok(Some(state)) = device.recv_state() {
-                *device_state.borrow_mut() = state;
-                mi.set_active(!mi.is_active());
-            }
-
-            mi.set_sensitive(true);
-        }
-    });
-
-    power_mi.connect_toggled({
-        let device = device.clone();
-        let device_state = device_state.clone();
-
-        move |mi| {
-            mi.set_sensitive(false);
-
-            let command = if mi.is_active() {
-                Command::PowerOn
-            } else {
                 Command::PowerOff
+            } else {
+                Command::PowerOn
             };
 
-            while device.send_command(command).is_err() {}
-
-            if let Ok(Some(state)) = device.recv_state() {
-                *device_state.borrow_mut() = state;
-                mi.set_active(!mi.is_active());
+            if cooler.send_command(command).is_err() {
+                menu_items.set_sensitive(true);
             }
+        }
+    });
+    menu_items.led_mi.connect_toggled({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
 
-            mi.set_sensitive(true);
+        move |mi| {
+            menu_items.set_sensitive(false);
+            let command = if mi.is_active() {
+                Command::LedsOff
+            } else {
+                Command::LedsOn
+            };
+
+            if cooler.send_command(command).is_err() {
+                menu_items.set_sensitive(true);
+            }
         }
     });
 
-    quit_mi.connect_activate(|_| {
-        gtk::main_quit();
-    });
+    quit_mi.connect_activate(|_| gtk::main_quit());
 
     let mut indicator = AppIndicator::new("CoolerThanYou tray icon", "");
     indicator.set_status(AppIndicatorStatus::Active);
@@ -171,14 +130,17 @@ fn main() -> AnyResult<()> {
     indicator.set_icon_full("cooler-than-you", "icon");
 
     let mut menu = gtk::Menu::new();
-    menu.append(&speed_up_mi);
-    menu.append(&speed_down_mi);
-    menu.append(&color_mi);
-    menu.append(&led_mi);
-    menu.append(&power_mi);
+    menu.append(&menu_items.speed_up_mi);
+    menu.append(&menu_items.speed_down_mi);
+    menu.append(&menu_items.color_mi);
+    menu.append(&menu_items.led_mi);
+    menu.append(&menu_items.power_mi);
     menu.append(&quit_mi);
     indicator.set_menu(&mut menu);
     menu.show_all();
+
+    let context = MainContext::default();
+    context.spawn_local(track_state(cooler, menu_items.clone()));
 
     gtk::main();
     Ok(())

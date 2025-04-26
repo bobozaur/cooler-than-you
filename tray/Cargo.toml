@@ -11,10 +11,11 @@ shared = { workspace = true }
 
 # External
 anyhow = { workspace = true }
+gtk = { workspace = true }
 itertools = { workspace = true }
 libappindicator = { workspace = true }
-gtk = { workspace = true }
 rusb = { workspace = true }
+systemstat = { workspace = true }
 
 [lints]
 workspace = true

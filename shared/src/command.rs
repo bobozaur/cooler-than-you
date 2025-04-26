@@ -5,13 +5,16 @@ use thiserror::Error as ThisError;
 /// While the power and LED buttons are in fact toggles, separating
 /// them makes it easier to reason about what to do depending on the
 /// current device state.
+///
+/// We start the enum variant indexing at `1` for the sake of
+/// having 0 represent no command to repeat in the [`crate::device_state::DeviceState`].
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(test, derive(strum::EnumIter, PartialEq))]
 pub enum Command {
     // Short press on `+` button.
     // Increases fan speed.
-    SpeedUp,
+    SpeedUp = 1,
     // Short press on `-` button.
     // Decreases fan speed.
     SpeedDown,
@@ -66,9 +69,12 @@ mod tests {
 
     use super::Command;
 
+    const MAX_BITS: usize = 3;
+
     #[test]
-    fn test_command_parsing() {
+    fn test_command_conversion() {
         for command in Command::iter() {
+            assert_eq!(command as u8 >> MAX_BITS, 0);
             assert_eq!((command as u8).try_into(), Ok(command));
         }
     }

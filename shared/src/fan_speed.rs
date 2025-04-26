@@ -69,9 +69,12 @@ mod tests {
 
     use super::FanSpeed;
 
+    const MAX_BITS: usize = 3;
+
     #[test]
     fn test_fan_speed_conversion() {
         for fan_speed in FanSpeed::iter() {
+            assert_eq!(fan_speed as u8 >> MAX_BITS, 0);
             assert_eq!((fan_speed as u8).try_into(), Ok(fan_speed));
         }
     }

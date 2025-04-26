@@ -25,6 +25,7 @@ gtk = { version = "0.18", default-features = false }
 panic-halt = { version = "0.2", default-features = false }
 rusb = { version = "0.9", default-features = false }
 strum = { version = "0.27", default-features = false, features = ["derive"] }
+systemstat = { version = "0.2", default-features = false }
 thiserror = { version = "2", default-features = false }
 usbd-hid = { version = "0.8", default-features = false }
 usb-device = { version = "0.3", default-features = false }

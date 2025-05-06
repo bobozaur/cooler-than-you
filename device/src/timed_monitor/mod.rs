@@ -102,6 +102,7 @@ impl MonitorContext {
             let power_pressed = self.power_monitor.is_pressed();
             let led_pressed = self.led_monitor.is_pressed();
 
+            // Need the backlight state from the previous iteration perhaps?
             let backlight_active = self.backlight_monitor.is_active();
 
             let any_button_pressed =
@@ -118,20 +119,29 @@ impl MonitorContext {
                         if speed_up_pressed {
                             self.monitor_state = MonitorState::Paused;
 
+                            if !shared_state.device_state().power_enabled() {
+                                return;
+                            }
+
                             if backlight_active {
                                 shared_state.update_device_state(DeviceState::increase_fan_speed);
                             } else {
-                                shared_state
-                                    .update_device_state(|ds| ds.repeat_command(Command::SpeedUp));
+                                shared_state.update_device_state(|ds| {
+                                    ds.set_repeat_command(Some(Command::SpeedUp))
+                                });
                             }
                         } else if speed_down_pressed {
                             self.monitor_state = MonitorState::Paused;
+
+                            if !shared_state.device_state().power_enabled() {
+                                return;
+                            }
 
                             if backlight_active {
                                 shared_state.update_device_state(DeviceState::decrease_fan_speed);
                             } else {
                                 shared_state.update_device_state(|ds| {
-                                    ds.repeat_command(Command::SpeedDown)
+                                    ds.set_repeat_command(Some(Command::SpeedDown))
                                 });
                             }
                         } else if power_pressed {

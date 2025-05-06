@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
 
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
@@ -7,9 +7,9 @@ use shared::{Command, DeviceState, USB_PID, USB_VID};
 
 use crate::AnyResult;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Cooler {
-    handle: DeviceHandle<Context>,
+    handle: Rc<DeviceHandle<Context>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
@@ -19,16 +19,14 @@ impl Cooler {
     ///
     /// # Errors
     pub fn new() -> AnyResult<Self> {
-        let (device, device_desc) = Context::new()
+        let handle = Context::new()
             .context("unable to initialize libusb")?
-            .devices()
-            .context("unable to enumerate devices")?
-            .iter()
-            .filter_map(|device| device.device_descriptor().ok().map(|desc| (device, desc)))
-            .filter(|(_, desc)| desc.vendor_id() == USB_VID && desc.product_id() == USB_PID)
-            .exactly_one()
-            .map_err(|err| anyhow!("{err}"))
-            .context("device descriptor")?;
+            .open_device_with_vid_pid(USB_VID, USB_PID)
+            .context("unable to open device")
+            .map(Rc::new)?;
+
+        let device = handle.device();
+        let device_desc = device.device_descriptor().context("device descriptor")?;
 
         let config_desc = (0..device_desc.num_configurations())
             .filter_map(|i| device.config_descriptor(i).ok())
@@ -66,8 +64,6 @@ impl Cooler {
             .context("OUT interrupt endpoint descriptor")
             .map(|e| e.address())?;
 
-        let handle = device.open()?;
-
         if handle.kernel_driver_active(interface_number)? {
             handle.detach_kernel_driver(interface_number)?;
         }
@@ -79,50 +75,54 @@ impl Cooler {
         handle
             .claim_interface(interface_number)
             .context("claiming interface")?;
+
         handle
             .set_alternate_setting(interface_number, setting_number)
             .context("choosing alternate setting")?;
 
-        Ok(Self {
+        let cooler = Self {
             handle,
             interface_number,
             in_endpoint_address,
             out_endpoint_address,
-        })
+        };
+
+        Ok(cooler)
     }
 
     ///
     /// # Errors
-    pub fn recv_state(&self) -> AnyResult<DeviceState> {
+    pub fn recv_state(&self) -> AnyResult<Option<DeviceState>> {
+        // TODO: Figure out why something like this is needed.
+        //       Subsequent reads do not succeed otherwise.
+        self.handle.clear_halt(self.in_endpoint_address)?;
+
         let mut buf = [0; 1];
 
-        let read = self.handle.read_interrupt(
+        match self.handle.read_interrupt(
             self.in_endpoint_address,
             &mut buf,
-            Duration::from_millis(1),
-        )?;
-
-        if read != 1 {
-            anyhow::bail!("device state not read");
+            Duration::from_millis(10),
+        ) {
+            Ok(1) => Ok(Some(DeviceState::try_from(buf[0])?)),
+            Ok(_) => anyhow::bail!("device state not read"),
+            Err(rusb::Error::Timeout) => Ok(None),
+            Err(e) => Err(e)?,
         }
-
-        DeviceState::try_from(buf[0]).map_err(From::from)
     }
 
     ///
     /// # Errors
     pub fn send_command(&self, command: Command) -> AnyResult<()> {
-        let written = self.handle.write_interrupt(
+        match self.handle.write_interrupt(
             self.out_endpoint_address,
             &[command.into()],
             Duration::from_millis(500),
-        )?;
-
-        if written != 1 {
-            anyhow::bail!("command not written");
+        ) {
+            Ok(1) => Ok(()),
+            Ok(_) => anyhow::bail!("command not written"),
+            Err(e) => Err(e)?,
         }
-
-        Ok(())
     }
 }
 

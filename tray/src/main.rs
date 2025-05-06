@@ -1,8 +1,12 @@
-use std::{cell::RefCell, rc::Rc, thread, time::Duration};
+use std::{rc::Rc, thread, time::Duration};
 
-use gtk::{CheckMenuItem, MenuItem, glib::MainContext, prelude::*};
+use gtk::{
+    CheckMenuItem, MenuItem,
+    glib::{self, ControlFlow},
+    prelude::*,
+};
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-use shared::Command;
+use shared::{Command, USB_POLL_MS};
 use tray::{AnyResult, Cooler, MenuItems, track_state};
 
 #[allow(clippy::too_many_lines)]
@@ -10,7 +14,7 @@ fn main() -> AnyResult<()> {
     let mut attempts: u8 = 10;
     let cooler = loop {
         match Cooler::new() {
-            Ok(cooler) => break Rc::new(cooler),
+            Ok(cooler) => break cooler,
             Err(e) if attempts == 0 => Err(e)?,
             Err(_) => {
                 thread::sleep(Duration::from_secs(1));
@@ -19,20 +23,10 @@ fn main() -> AnyResult<()> {
         }
     };
 
-    cooler.send_command(Command::PowerOn)?;
+    // Power cycle the device to ensure it's on.
+    // If it's already off, the first command will be a no-op.
     cooler.send_command(Command::PowerOff)?;
-
-    let mut attempts: u8 = 10;
-    let device_state = loop {
-        match cooler.recv_state() {
-            Ok(state) => break state,
-            Err(e) if attempts == 0 => Err(e)?,
-            Err(_) => {
-                thread::sleep(Duration::from_millis(100));
-                attempts -= 1;
-            }
-        }
-    };
+    cooler.send_command(Command::PowerOn)?;
 
     gtk::init()?;
 
@@ -40,7 +34,7 @@ fn main() -> AnyResult<()> {
     let speed_down_mi = MenuItem::with_label("Decrease speed");
     let color_mi = MenuItem::with_label("Change color");
     let power_mi = CheckMenuItem::with_label("Power");
-    let led_mi = CheckMenuItem::with_label("Lights");
+    let leds_mi = CheckMenuItem::with_label("Lights");
     let quit_mi = MenuItem::with_label("Quit");
 
     let menu_items = Rc::new(MenuItems {
@@ -48,11 +42,8 @@ fn main() -> AnyResult<()> {
         speed_down_mi,
         color_mi,
         power_mi,
-        led_mi,
+        leds_mi,
     });
-
-    menu_items.led_mi.set_active(device_state.leds_enabled());
-    menu_items.power_mi.set_active(device_state.power_enabled());
 
     menu_items.speed_up_mi.connect_activate({
         let menu_items = menu_items.clone();
@@ -65,6 +56,7 @@ fn main() -> AnyResult<()> {
             }
         }
     });
+
     menu_items.speed_down_mi.connect_activate({
         let menu_items = menu_items.clone();
         let cooler = cooler.clone();
@@ -77,17 +69,13 @@ fn main() -> AnyResult<()> {
         }
     });
     menu_items.color_mi.connect_activate({
-        let menu_items = menu_items.clone();
         let cooler = cooler.clone();
 
         move |_| {
-            menu_items.set_sensitive(false);
-            if cooler.send_command(Command::LedsColorChange).is_err() {
-                menu_items.set_sensitive(true);
-            }
+            cooler.send_command(Command::LedsColorChange).ok();
         }
     });
-    menu_items.power_mi.connect_toggled({
+    let power_sigh_id = menu_items.power_mi.connect_activate({
         let menu_items = menu_items.clone();
         let cooler = cooler.clone();
 
@@ -104,7 +92,8 @@ fn main() -> AnyResult<()> {
             }
         }
     });
-    menu_items.led_mi.connect_toggled({
+
+    let leds_sigh_id = menu_items.leds_mi.connect_activate({
         let menu_items = menu_items.clone();
         let cooler = cooler.clone();
 
@@ -133,14 +122,16 @@ fn main() -> AnyResult<()> {
     menu.append(&menu_items.speed_up_mi);
     menu.append(&menu_items.speed_down_mi);
     menu.append(&menu_items.color_mi);
-    menu.append(&menu_items.led_mi);
+    menu.append(&menu_items.leds_mi);
     menu.append(&menu_items.power_mi);
     menu.append(&quit_mi);
     indicator.set_menu(&mut menu);
     menu.show_all();
 
-    let context = MainContext::default();
-    context.spawn_local(track_state(cooler, menu_items.clone()));
+    glib::timeout_add_local(Duration::from_millis(USB_POLL_MS.into()), move || {
+        track_state(&cooler, &menu_items, &power_sigh_id, &leds_sigh_id);
+        ControlFlow::Continue
+    });
 
     gtk::main();
     Ok(())

@@ -79,8 +79,8 @@ impl DeviceState {
     }
 
     #[inline]
-    pub fn repeat_command(&mut self, command: Command) {
-        self.command_to_repeat = Some(command);
+    pub fn set_repeat_command(&mut self, command: Option<Command>) {
+        self.command_to_repeat = command;
     }
 }
 
@@ -101,7 +101,7 @@ impl TryFrom<u8> for DeviceState {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let power_enabled = value & 0b1000_0000 != 0;
         let leds_enabled = value & 0b0100_0000 != 0;
-        let fan_speed = (value & 0b0011_1000).try_into()?;
+        let fan_speed = ((value & 0b0011_1000) >> 3).try_into()?;
         let command_to_repeat_byte = value & 0b0000_0111;
 
         let repeat_command = (command_to_repeat_byte != 0)

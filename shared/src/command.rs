@@ -46,13 +46,13 @@ impl TryFrom<u8> for Command {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(Command::SpeedUp),
-            1 => Ok(Command::SpeedDown),
-            2 => Ok(Command::PowerOn),
-            3 => Ok(Command::PowerOff),
-            4 => Ok(Command::LedsOn),
-            5 => Ok(Command::LedsOff),
-            6 => Ok(Command::LedsColorChange),
+            1 => Ok(Command::SpeedUp),
+            2 => Ok(Command::SpeedDown),
+            3 => Ok(Command::PowerOn),
+            4 => Ok(Command::PowerOff),
+            5 => Ok(Command::LedsOn),
+            6 => Ok(Command::LedsOff),
+            7 => Ok(Command::LedsColorChange),
             _ => Err(CommandConvError),
         }
     }

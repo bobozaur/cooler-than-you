@@ -27,6 +27,7 @@ impl SharedState {
     where
         F: FnOnce(&mut DeviceState),
     {
+        self.device_state.set_repeat_command(None);
         f(&mut self.device_state);
         self.send_state = true;
     }

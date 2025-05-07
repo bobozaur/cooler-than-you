@@ -1,4 +1,5 @@
 mod cooler;
+mod indicator;
 
 pub use anyhow::Result as AnyResult;
 pub use cooler::Cooler;
@@ -6,6 +7,7 @@ use gtk::{
     CheckMenuItem, MenuItem,
     traits::{CheckMenuItemExt, WidgetExt},
 };
+pub use indicator::Indicator;
 
 #[derive(Debug)]
 pub struct MenuItems {

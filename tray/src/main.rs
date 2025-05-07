@@ -5,10 +5,9 @@ use gtk::{
     glib::{self, ControlFlow, SourceId},
     prelude::*,
 };
-use libappindicator::{AppIndicator, AppIndicatorStatus};
 use shared::Command;
 use systemstat::{Platform, System};
-use tray::{AnyResult, Cooler, MenuItems};
+use tray::{AnyResult, Cooler, Indicator, MenuItems};
 
 #[allow(clippy::too_many_lines)]
 fn main() -> AnyResult<()> {
@@ -141,22 +140,16 @@ fn main() -> AnyResult<()> {
 
     quit_mi.connect_activate(|_| gtk::main_quit());
 
-    let mut indicator = AppIndicator::new("CoolerThanYou tray icon", "");
-    indicator.set_status(AppIndicatorStatus::Active);
-    indicator.set_icon_theme_path("");
-    indicator.set_icon_full("cooler-than-you", "icon");
+    let mut indicator = Indicator::new()?;
 
-    let mut menu = gtk::Menu::new();
-    menu.append(&menu_items.speed_up_mi);
-    menu.append(&menu_items.speed_down_mi);
-    menu.append(&menu_items.color_mi);
-    menu.append(&menu_items.speed_auto_adjust_mi);
-    menu.append(&menu_items.leds_mi);
-    menu.append(&menu_items.power_mi);
-    menu.append(&SeparatorMenuItem::new());
-    menu.append(&quit_mi);
-    menu.show_all();
-    indicator.set_menu(&mut menu);
+    indicator.add_menu_item(&menu_items.speed_up_mi);
+    indicator.add_menu_item(&menu_items.speed_down_mi);
+    indicator.add_menu_item(&menu_items.color_mi);
+    indicator.add_menu_item(&menu_items.speed_auto_adjust_mi);
+    indicator.add_menu_item(&menu_items.leds_mi);
+    indicator.add_menu_item(&menu_items.power_mi);
+    indicator.add_menu_item(&SeparatorMenuItem::new());
+    indicator.add_menu_item(&quit_mi);
 
     // Power cycle the device to ensure it's on.
     // If it's already off, the first command will be a no-op.
@@ -192,6 +185,6 @@ fn main() -> AnyResult<()> {
         ControlFlow::Continue
     });
 
-    gtk::main();
+    indicator.run();
     Ok(())
 }

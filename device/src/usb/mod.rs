@@ -43,7 +43,8 @@ pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
 
     let strings = StringDescriptors::new(LangID::EN)
         .manufacturer("Cooler")
-        .product("Than You");
+        .product("Than You")
+        .serial_number("mirceapetrebogdan@gmail.com:cooler01");
 
     let hid_class = HIDClass::new(usb_bus, HidReport::desc(), USB_POLL_MS);
     let usb_device = UsbDeviceBuilder::new(usb_bus, UsbVidPid(USB_VID, USB_PID))

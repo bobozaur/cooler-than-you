@@ -32,7 +32,7 @@ where
     #[inline]
     pub fn short_press(&mut self) {
         self.0.set_high();
-        delay_ms(40 + PIN::SHORT_PRESS_EXCESS);
+        delay_ms(PIN::SHORT_PRESS_MS);
         self.0.set_low();
         delay_ms(PIN::POST_PRESS_DELAY);
     }
@@ -55,7 +55,7 @@ where
         // is triggered.
         delay_ms(275);
         self.0.set_high();
-        delay_ms(1400 + PIN::LONG_PRESS_EXCESS);
+        delay_ms(PIN::LONG_PRESS_MS);
         self.0.set_low();
         delay_ms(PIN::POST_PRESS_DELAY);
     }

@@ -10,11 +10,11 @@ pub type LedButtonPin = PB2;
 
 pub trait ShortPressPin: PinOps {
     const POST_PRESS_DELAY: u16 = 5;
-    const SHORT_PRESS_EXCESS: u16 = <Self as ShortPressPin>::POST_PRESS_DELAY;
+    const SHORT_PRESS_MS: u16 = 45;
 }
 
 pub trait LongPressPin: ShortPressPin {
-    const LONG_PRESS_EXCESS: u16 = 25;
+    const LONG_PRESS_MS: u16 = 1425;
 }
 
 impl ShortPressPin for SpeedUpButtonPin {}

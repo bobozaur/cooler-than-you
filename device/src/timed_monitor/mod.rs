@@ -19,7 +19,10 @@ use pins::{
 };
 use shared::{Command, DeviceState};
 
-use crate::{interrupt_cell::InterruptCell, shared_state::SHARED_STATE};
+use crate::{
+    interrupt_cell::InterruptCell,
+    shared_state::{SHARED_STATE, SharedState},
+};
 
 /// Timer context that gets setup prior to enabling interrupts
 /// and is used exclusively from the timer interrupt.
@@ -95,7 +98,7 @@ impl MonitorContext {
     #[inline]
     fn monitor(&mut self) {
         interrupt::free(|cs| {
-            let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
+            let shared_state = &mut *SHARED_STATE.borrow(cs).borrow_mut();
 
             let speed_up_pressed = self.speed_up_monitor.is_pressed();
             let speed_down_pressed = self.speed_down_monitor.is_pressed();
@@ -119,31 +122,21 @@ impl MonitorContext {
                         if speed_up_pressed {
                             self.monitor_state = MonitorState::Paused;
 
-                            if !shared_state.device_state().power_enabled() {
-                                return;
-                            }
-
-                            if backlight_active {
-                                shared_state.update_device_state(DeviceState::increase_fan_speed);
-                            } else {
-                                shared_state.update_device_state(|ds| {
-                                    ds.set_repeat_command(Some(Command::SpeedUp))
-                                });
-                            }
+                            Self::speed_button_pressed(
+                                shared_state,
+                                backlight_active,
+                                DeviceState::increase_fan_speed,
+                                Command::SpeedUp,
+                            );
                         } else if speed_down_pressed {
                             self.monitor_state = MonitorState::Paused;
 
-                            if !shared_state.device_state().power_enabled() {
-                                return;
-                            }
-
-                            if backlight_active {
-                                shared_state.update_device_state(DeviceState::decrease_fan_speed);
-                            } else {
-                                shared_state.update_device_state(|ds| {
-                                    ds.set_repeat_command(Some(Command::SpeedDown))
-                                });
-                            }
+                            Self::speed_button_pressed(
+                                shared_state,
+                                backlight_active,
+                                DeviceState::decrease_fan_speed,
+                                Command::SpeedDown,
+                            );
                         } else if power_pressed {
                             self.monitor_state = MonitorState::Focused(MonitorFocusKind::Power);
                         } else if led_pressed {
@@ -174,18 +167,23 @@ impl MonitorContext {
                         if self.buttons_state == u64::MAX {
                             self.buttons_state = 0;
                             self.buttons_history += 1;
-                        }
-                        // Short press triggered
-                        else if !button_pressed {
+                        } else if !button_pressed {
+                            // Short press triggered
                             self.monitor_state = MonitorState::Paused;
+
                             if let Some(short_press_fn) = short_press_fn_opt {
                                 shared_state.update_device_state(short_press_fn);
+                            } else {
+                                // LED button short press
+                                //
+                                // For visibility, we still want to the state to be sent.
+                                shared_state.update_device_state(|_| ());
                             }
                         }
-                    }
-                    // Long press triggered
-                    else if self.buttons_state == 0x00FF_FFFF_FFFF_FFFF {
+                    } else if self.buttons_state == 0x00FF_FFFF_FFFF_FFFF {
+                        // Long press triggered
                         self.monitor_state = MonitorState::Paused;
+
                         if let Some(long_press_fn) = long_press_fn_opt {
                             shared_state.update_device_state(long_press_fn);
                         }
@@ -193,5 +191,28 @@ impl MonitorContext {
                 }
             }
         });
+    }
+
+    #[inline]
+    fn speed_button_pressed<F>(
+        shared_state: &mut SharedState,
+        backlight_active: bool,
+        state_change_fn: F,
+        repeat_command: Command,
+    ) where
+        F: FnOnce(&mut DeviceState),
+    {
+        // Fan speed does not change when the device is powered off.
+        if !shared_state.device_state().power_enabled() {
+            return;
+        }
+
+        let repeat_command_fn = |ds: &mut DeviceState| ds.set_repeat_command(Some(repeat_command));
+
+        if backlight_active {
+            shared_state.update_device_state(state_change_fn);
+        } else {
+            shared_state.update_device_state(repeat_command_fn);
+        }
     }
 }

@@ -1,5 +1,5 @@
 //! VID and PID used from <https://github.com/obdev/v-usb/blob/master/usbdrv/USB-IDs-for-free.txt>.
-//! Discrimination is done by serial number.
+//! Discrimination is done by textual name.
 
 #![no_std]
 
@@ -12,5 +12,7 @@ pub use device_state::DeviceState;
 pub use fan_speed::FanSpeed;
 
 pub const USB_VID: u16 = 0x16C0;
-pub const USB_PID: u16 = 0x27D8;
+pub const USB_PID: u16 = 0x05df;
+pub const USB_MANUFACTURER: &str = "mirceapetrebogdan@gmail.com";
+pub const USB_PRODUCT: &str = "Cooler Than You";
 pub const USB_POLL_MS: u8 = 40;

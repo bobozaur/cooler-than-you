@@ -2,8 +2,8 @@ use std::{rc::Rc, time::Duration};
 
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
-use rusb::{Context, DeviceHandle, Direction, TransferType, UsbContext};
-use shared::{Command, DeviceState, USB_PID, USB_POLL_MS, USB_VID};
+use rusb::{Context, Device as RusbDevice, DeviceHandle, Direction, TransferType, UsbContext};
+use shared::{Command, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID};
 
 use crate::AnyResult;
 
@@ -21,9 +21,12 @@ impl Cooler {
     pub fn new() -> AnyResult<Self> {
         let handle = Context::new()
             .context("unable to initialize libusb")?
-            .open_device_with_vid_pid(USB_VID, USB_PID)
-            .context("unable to open device")
-            .map(Rc::new)?;
+            .devices()?
+            .iter()
+            .filter_map(Self::device_filter)
+            .exactly_one()
+            .map(Rc::new)
+            .map_err(|e| anyhow!("{e}"))?;
 
         let device = handle.device();
         let device_desc = device.device_descriptor().context("device descriptor")?;
@@ -123,6 +126,25 @@ impl Cooler {
             Ok(_) => anyhow::bail!("command not written"),
             Err(e) => Err(e)?,
         }
+    }
+
+    #[expect(clippy::needless_pass_by_value, reason = "used in a `filter_map`")]
+    fn device_filter(device: RusbDevice<Context>) -> Option<DeviceHandle<Context>> {
+        let desc = device.device_descriptor().ok()?;
+
+        if desc.vendor_id() != USB_VID || desc.product_id() != USB_PID {
+            return None;
+        }
+
+        let handle = device.open().ok()?;
+        let manufacturer = handle.read_manufacturer_string_ascii(&desc).ok()?;
+        let product = handle.read_product_string_ascii(&desc).ok()?;
+
+        if manufacturer != USB_MANUFACTURER || product != USB_PRODUCT {
+            return None;
+        }
+
+        Some(handle)
     }
 }
 

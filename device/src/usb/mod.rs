@@ -8,7 +8,7 @@ use arduino_hal::{
 };
 use avr_device::interrupt;
 use hid_report::HidReport;
-use shared::{USB_PID, USB_POLL_MS, USB_VID};
+use shared::{USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID};
 use suspender::Suspender;
 use usb_device::{
     LangID,
@@ -42,9 +42,8 @@ pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
     let usb_bus = USB_BUS.init(UsbBus::with_suspend_notifier(usb, Suspender::new(pll)));
 
     let strings = StringDescriptors::new(LangID::EN)
-        .manufacturer("Cooler")
-        .product("Than You")
-        .serial_number("mirceapetrebogdan@gmail.com:cooler01");
+        .manufacturer(USB_MANUFACTURER)
+        .product(USB_PRODUCT);
 
     let hid_class = HIDClass::new(usb_bus, HidReport::desc(), USB_POLL_MS);
     let usb_device = UsbDeviceBuilder::new(usb_bus, UsbVidPid(USB_VID, USB_PID))

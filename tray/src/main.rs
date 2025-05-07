@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use gtk::{
-    CheckMenuItem, MenuItem, SeparatorMenuItem,
+    MenuItem, SeparatorMenuItem,
     glib::{self, ControlFlow, SourceId},
     prelude::*,
 };
@@ -12,61 +12,9 @@ use tray::{AnyResult, Cooler, Indicator, MenuItems};
 #[allow(clippy::too_many_lines)]
 fn main() -> AnyResult<()> {
     let cooler = Cooler::new()?;
+    let mut indicator = Indicator::new()?;
 
-    gtk::init()?;
-
-    let speed_up_mi = MenuItem::with_label("Increase speed");
-    let speed_down_mi = MenuItem::with_label("Decrease speed");
-    let color_mi = MenuItem::with_label("Change color");
-    let speed_auto_adjust_mi = CheckMenuItem::with_label("Auto-adjust speed");
-    let power_mi = CheckMenuItem::with_label("Power");
-    let leds_mi = CheckMenuItem::with_label("Lights");
-    let quit_mi = MenuItem::with_label("Quit");
-
-    let menu_items = Rc::new(MenuItems {
-        speed_up_mi,
-        speed_down_mi,
-        color_mi,
-        speed_auto_adjust_mi,
-        power_mi,
-        leds_mi,
-    });
-
-    menu_items.speed_up_mi.connect_activate({
-        let menu_items = menu_items.clone();
-        let cooler = cooler.clone();
-
-        move |_| {
-            menu_items.set_sensitive(false);
-            if cooler.send_command(Command::SpeedUp).is_err() {
-                menu_items.set_sensitive(true);
-            }
-        }
-    });
-
-    menu_items.speed_down_mi.connect_activate({
-        let menu_items = menu_items.clone();
-        let cooler = cooler.clone();
-
-        move |_| {
-            menu_items.set_sensitive(false);
-            if cooler.send_command(Command::SpeedDown).is_err() {
-                menu_items.set_sensitive(true);
-            }
-        }
-    });
-
-    menu_items.color_mi.connect_activate({
-        let menu_items = menu_items.clone();
-        let cooler = cooler.clone();
-
-        move |_| {
-            menu_items.set_sensitive(false);
-            if cooler.send_command(Command::LedsColorChange).is_err() {
-                menu_items.set_sensitive(true);
-            }
-        }
-    });
+    let menu_items = Rc::new(MenuItems::new());
 
     menu_items.speed_auto_adjust_mi.connect_activate({
         let menu_items = menu_items.clone();
@@ -75,18 +23,16 @@ fn main() -> AnyResult<()> {
 
         move |mi| {
             let source_id = &mut *source_id.borrow_mut();
+            menu_items.refresh_sensitivity();
 
             match source_id.take() {
                 Some(id) if !mi.is_active() => {
-                    menu_items.speed_up_mi.set_sensitive(true);
-                    menu_items.speed_down_mi.set_sensitive(true);
                     id.remove();
                 }
                 None if mi.is_active() => {
-                    menu_items.speed_up_mi.set_sensitive(false);
-                    menu_items.speed_down_mi.set_sensitive(false);
                     source_id.replace(glib::timeout_add_seconds_local(5, {
                         let cooler = cooler.clone();
+
                         move || {
                             let system = System::new();
                             system.cpu_temp().ok();
@@ -97,26 +43,28 @@ fn main() -> AnyResult<()> {
                 }
                 _ => (),
             }
-
-            mi.set_sensitive(true);
         }
     });
 
-    let power_sigh_id = menu_items.power_mi.connect_activate({
+    menu_items.speed_up_mi.connect_activate({
         let menu_items = menu_items.clone();
         let cooler = cooler.clone();
 
-        move |mi| {
-            menu_items.set_sensitive(false);
-            let command = if mi.is_active() {
-                Command::PowerOn
-            } else {
-                Command::PowerOff
-            };
+        move |_| {
+            menu_items.disable();
 
-            if cooler.send_command(command).is_err() {
-                menu_items.set_sensitive(true);
-            }
+            if cooler.send_command(Command::SpeedUp).is_err() {}
+        }
+    });
+
+    menu_items.speed_down_mi.connect_activate({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
+
+        move |_| {
+            menu_items.disable();
+
+            if cooler.send_command(Command::SpeedDown).is_err() {}
         }
     });
 
@@ -125,28 +73,61 @@ fn main() -> AnyResult<()> {
         let cooler = cooler.clone();
 
         move |mi| {
-            menu_items.set_sensitive(false);
+            menu_items.disable();
+
             let command = if mi.is_active() {
                 Command::LedsOn
             } else {
                 Command::LedsOff
             };
 
-            if cooler.send_command(command).is_err() {
-                menu_items.set_sensitive(true);
-            }
+            if cooler.send_command(command).is_err() {}
         }
     });
 
+    menu_items.color_mi.connect_activate({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
+
+        move |_| {
+            menu_items.disable();
+
+            if cooler.send_command(Command::LedsColorChange).is_err() {}
+        }
+    });
+
+    let power_sigh_id = menu_items.power_mi.connect_activate({
+        let menu_items = menu_items.clone();
+        let cooler = cooler.clone();
+
+        move |mi| {
+            menu_items.disable();
+
+            let command = if mi.is_active() {
+                Command::PowerOn
+            } else {
+                Command::PowerOff
+            };
+
+            if cooler.send_command(command).is_err() {}
+        }
+    });
+
+    let speed_label_mi = MenuItem::with_label("Fan speed: N/A");
+    speed_label_mi.set_sensitive(false);
+
+    let quit_mi = MenuItem::with_label("Quit");
     quit_mi.connect_activate(|_| gtk::main_quit());
 
-    let mut indicator = Indicator::new()?;
-
+    indicator.add_menu_item(&speed_label_mi);
+    indicator.add_menu_item(&SeparatorMenuItem::new());
+    indicator.add_menu_item(&menu_items.speed_auto_adjust_mi);
     indicator.add_menu_item(&menu_items.speed_up_mi);
     indicator.add_menu_item(&menu_items.speed_down_mi);
-    indicator.add_menu_item(&menu_items.color_mi);
-    indicator.add_menu_item(&menu_items.speed_auto_adjust_mi);
+    indicator.add_menu_item(&SeparatorMenuItem::new());
     indicator.add_menu_item(&menu_items.leds_mi);
+    indicator.add_menu_item(&menu_items.color_mi);
+    indicator.add_menu_item(&SeparatorMenuItem::new());
     indicator.add_menu_item(&menu_items.power_mi);
     indicator.add_menu_item(&SeparatorMenuItem::new());
     indicator.add_menu_item(&quit_mi);
@@ -181,7 +162,10 @@ fn main() -> AnyResult<()> {
             return ControlFlow::Continue;
         }
 
-        menu_items.set_sensitive(true);
+        let speed = u8::from(device_state.fan_speed()) + 1;
+        speed_label_mi.set_label(&format!("Fan speed: {speed}"));
+
+        menu_items.refresh_sensitivity();
         ControlFlow::Continue
     });
 

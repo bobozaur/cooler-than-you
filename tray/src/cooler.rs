@@ -3,7 +3,7 @@ use std::{rc::Rc, time::Duration};
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
 use rusb::{Context, DeviceHandle, Direction, TransferType, UsbContext};
-use shared::{Command, DeviceState, USB_PID, USB_VID};
+use shared::{Command, DeviceState, USB_PID, USB_POLL_MS, USB_VID};
 
 use crate::AnyResult;
 
@@ -102,7 +102,7 @@ impl Cooler {
         match self.handle.read_interrupt(
             self.in_endpoint_address,
             &mut buf,
-            Duration::from_millis(10),
+            Duration::from_millis(USB_POLL_MS.into()),
         ) {
             Ok(1) => Ok(Some(DeviceState::try_from(buf[0])?)),
             Ok(_) => anyhow::bail!("device state not read"),

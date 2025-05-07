@@ -11,16 +11,12 @@ pub type SpeedUpButtonMonitor = ButtonMonitor<SpeedUpMonitorPin>;
 pub type SpeedDownButtonMonitor = ButtonMonitor<SpeedDownMonitorPin>;
 pub type PowerButtonMonitor = ButtonMonitor<PowerMonitorPin>;
 pub type LedButtonMonitor = ButtonMonitor<LedMonitorPin>;
-pub type BacklightMonitor = Monitor<BacklightMonitorPin>;
 
-pub struct Monitor<PIN>(Pin<Input<PullUp>, PIN>);
+pub struct BacklightMonitor(Pin<Input<PullUp>, BacklightMonitorPin>);
 
-impl<PIN> Monitor<PIN>
-where
-    PIN: PinOps,
-{
+impl BacklightMonitor {
     #[inline]
-    pub fn new(pin: Pin<Input<PullUp>, PIN>) -> Self {
+    pub fn new(pin: Pin<Input<PullUp>, BacklightMonitorPin>) -> Self {
         Self(pin)
     }
 
@@ -30,7 +26,7 @@ where
     }
 }
 
-pub struct ButtonMonitor<PIN>(Monitor<PIN>);
+pub struct ButtonMonitor<PIN>(Pin<Input<PullUp>, PIN>);
 
 impl<PIN> ButtonMonitor<PIN>
 where
@@ -38,12 +34,12 @@ where
 {
     #[inline]
     pub fn new(pin: Pin<Input<PullUp>, PIN>) -> Self {
-        Self(Monitor::new(pin))
+        Self(pin)
     }
 
     #[inline]
     pub fn is_pressed(&self) -> bool {
-        self.0.is_active()
+        self.0.is_low()
     }
 }
 

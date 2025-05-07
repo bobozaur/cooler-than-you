@@ -70,6 +70,7 @@ struct MonitorContext {
     led_monitor: LedButtonMonitor,
     backlight_monitor: BacklightMonitor,
     monitor_state: MonitorState,
+    prev_backlight_state: bool,
     buttons_state: u64,
     buttons_history: u8,
 }
@@ -84,14 +85,15 @@ impl MonitorContext {
         backlight_monitor: BacklightMonitor,
     ) -> Self {
         Self {
+            monitor_state: MonitorState::Active,
+            prev_backlight_state: backlight_monitor.is_active(),
+            buttons_state: 0,
+            buttons_history: 0,
             speed_up_monitor,
             speed_down_monitor,
             power_monitor,
             led_monitor,
             backlight_monitor,
-            monitor_state: MonitorState::Active,
-            buttons_state: 0,
-            buttons_history: 0,
         }
     }
 
@@ -105,8 +107,13 @@ impl MonitorContext {
             let power_pressed = self.power_monitor.is_pressed();
             let led_pressed = self.led_monitor.is_pressed();
 
-            // Need the backlight state from the previous iteration perhaps?
-            let backlight_active = self.backlight_monitor.is_active();
+            // Consider both whether the backlight was previously active and whether it is active
+            // now to avoid the race condition where the button press activates the
+            // backlight and the read indicates that it *is* active although it did not
+            // use to be.
+            let current_backlight_state = self.backlight_monitor.is_active();
+            let backlight_active = self.prev_backlight_state && current_backlight_state;
+            self.prev_backlight_state = current_backlight_state;
 
             let any_button_pressed =
                 speed_up_pressed || speed_down_pressed || power_pressed || led_pressed;

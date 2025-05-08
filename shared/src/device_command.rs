@@ -67,7 +67,7 @@ pub struct CommandConvError;
 mod tests {
     use strum::IntoEnumIterator;
 
-    use super::DeviceCommand;
+    use crate::DeviceCommand;
 
     const MAX_BITS: usize = 3;
 

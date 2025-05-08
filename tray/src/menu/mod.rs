@@ -1,8 +1,8 @@
-mod item;
+pub mod item;
 
-pub use item::{
-    AddableMenuItem, LedsChangeColorItem, LedsToggleItem, PowerToggleItem, QuitItem, SpeedAutoItem,
-    SpeedDownItem, SpeedLabelItem, SpeedUpItem,
+use crate::menu::item::{
+    command::{LedsChangeColorItem, LedsToggleItem, PowerToggleItem, SpeedDownItem, SpeedUpItem},
+    speed_auto::SpeedAutoItem,
 };
 
 #[derive(Debug, Default)]

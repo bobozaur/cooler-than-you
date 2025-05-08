@@ -8,7 +8,10 @@ use gtk::{
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use shared::DeviceCommand;
 
-use crate::{AnyResult, Cooler, MenuItems, menu_item::AddableMenuItem};
+use crate::{
+    AnyResult, Cooler,
+    menu::{MenuItems, item::MenuItemSetup},
+};
 
 #[derive(Debug)]
 pub struct Indicator {
@@ -23,12 +26,12 @@ impl Indicator {
     /// # Errors
     pub fn new() -> AnyResult<Self> {
         let device = Cooler::new()?;
-        
+
         gtk::init()?;
-        
+
         let menu_items = Rc::new(MenuItems::new());
         let menu = Menu::new();
-        
+
         let mut app_indicator = AppIndicator::new("CoolerThanYou tray icon", "");
         app_indicator.set_status(AppIndicatorStatus::Active);
         app_indicator.set_icon_theme_path("");
@@ -45,7 +48,7 @@ impl Indicator {
 
     pub fn add_menu_item<MI>(&mut self, menu_item: &MI) -> Option<SignalHandlerId>
     where
-        MI: AddableMenuItem,
+        MI: MenuItemSetup,
     {
         let (mi, handler_id) = menu_item.setup(self.menu_items.clone(), self.device.clone());
         self.menu.append(mi);

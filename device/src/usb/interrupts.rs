@@ -1,6 +1,6 @@
 use avr_device::interrupt;
 
-use super::USB_DEVICE;
+use crate::usb::USB_DEVICE;
 
 #[interrupt(atmega32u4)]
 fn USB_GEN() {

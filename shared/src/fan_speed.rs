@@ -80,7 +80,7 @@ mod tests {
 
     use strum::IntoEnumIterator;
 
-    use super::FanSpeed;
+    use crate::FanSpeed;
 
     const MAX_BITS: usize = 3;
 

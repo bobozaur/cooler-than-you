@@ -3,7 +3,7 @@ use arduino_hal::port::{
     mode::{Input, PullUp},
 };
 
-use super::pins::{
+use crate::timed_monitor::pins::{
     BacklightMonitorPin, LedMonitorPin, PowerMonitorPin, SpeedDownMonitorPin, SpeedUpMonitorPin,
 };
 

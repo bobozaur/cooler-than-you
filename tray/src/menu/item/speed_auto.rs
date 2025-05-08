@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use gtk::{CheckMenuItem, glib::SignalHandlerId};
+use gtk::{CheckMenuItem, glib::SignalHandlerId, traits::CheckMenuItemExt};
 
 use crate::{
     Device,
@@ -23,6 +23,7 @@ impl MenuItemSetup for SpeedAutoItem {
     type MenuItem = CheckMenuItem;
 
     fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
+        self.inner.set_active(true);
         (&self.inner, None)
     }
 }

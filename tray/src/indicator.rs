@@ -71,6 +71,10 @@ impl Indicator {
 
         // Power cycle the device to ensure it's on.
         // If it's already off, the first command will be a no-op.
+        //
+        // We send the commands this way so that the time between them
+        // being sent and read is minimal and happens as soon as the event
+        // loop is started.
         glib::idle_add_local_once({
             let device = self.device.clone();
             move || {

@@ -9,7 +9,7 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 use shared::DeviceCommand;
 
 use crate::{
-    AnyResult, Cooler,
+    AnyResult, Device,
     menu::{MenuItems, item::MenuItemSetup},
 };
 
@@ -18,14 +18,14 @@ pub struct Indicator {
     inner: InnerIndicator,
     menu: Menu,
     menu_items: Rc<MenuItems>,
-    device: Cooler,
+    device: Device,
 }
 
 impl Indicator {
     ///
     /// # Errors
     pub fn new() -> AnyResult<Self> {
-        let device = Cooler::new()?;
+        let device = Device::new()?;
 
         gtk::init()?;
 
@@ -56,7 +56,7 @@ impl Indicator {
     }
 
     #[must_use]
-    pub fn device(&self) -> &Cooler {
+    pub fn device(&self) -> &Device {
         &self.device
     }
 

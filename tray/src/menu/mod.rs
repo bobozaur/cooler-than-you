@@ -11,7 +11,7 @@ pub struct MenuItems {
     pub speed_up: SpeedUpItem,
     pub speed_down: SpeedDownItem,
     pub leds: LedsToggleItem,
-    pub change_color: LedsChangeColorItem,
+    pub leds_change_color: LedsChangeColorItem,
     pub power: PowerToggleItem,
 }
 
@@ -38,7 +38,7 @@ impl MenuItems {
 
         self.leds.set_sensitive(flag);
         let enable_leds_ctrl = flag && self.leds.is_active();
-        self.change_color.set_sensitive(enable_leds_ctrl);
+        self.leds_change_color.set_sensitive(enable_leds_ctrl);
 
         self.power.set_sensitive(flag);
     }

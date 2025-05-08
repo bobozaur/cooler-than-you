@@ -8,14 +8,14 @@ use shared::{DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS,
 use crate::AnyResult;
 
 #[derive(Clone, Debug)]
-pub struct Cooler {
+pub struct Device {
     handle: Rc<DeviceHandle<Context>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
 }
 
-impl Cooler {
+impl Device {
     ///
     /// # Errors
     pub fn new() -> AnyResult<Self> {
@@ -148,7 +148,7 @@ impl Cooler {
     }
 }
 
-impl Drop for Cooler {
+impl Drop for Device {
     fn drop(&mut self) {
         if let Ok(false) = self.handle.kernel_driver_active(self.interface_number) {
             self.handle.attach_kernel_driver(self.interface_number).ok();

@@ -11,7 +11,7 @@ use gtk::{
     traits::{CheckMenuItemExt, GtkMenuItemExt, WidgetExt},
 };
 
-use crate::{Cooler, menu::MenuItems};
+use crate::{Device, menu::MenuItems};
 
 pub trait ItemLabel {
     const LABEL: &str;
@@ -23,14 +23,14 @@ pub trait MenuItemSetup {
     fn setup(
         &self,
         menu_items: Rc<MenuItems>,
-        device: Cooler,
+        device: Device,
     ) -> (&Self::MenuItem, Option<SignalHandlerId>);
 }
 
 impl MenuItemSetup for SeparatorMenuItem {
     type MenuItem = Self;
 
-    fn setup(&self, _: Rc<MenuItems>, _: Cooler) -> (&Self::MenuItem, Option<SignalHandlerId>) {
+    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
         (self, None)
     }
 }

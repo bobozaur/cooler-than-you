@@ -8,7 +8,7 @@ use gtk::{
 use shared::DeviceCommand;
 
 use crate::{
-    Cooler,
+    Device,
     menu::{
         MenuItems,
         item::{CustomMenuItem, ItemLabel, MenuItemSetup},
@@ -116,7 +116,7 @@ where
     fn setup(
         &self,
         menu_items: Rc<MenuItems>,
-        device: Cooler,
+        device: Device,
     ) -> (&Self::MenuItem, Option<SignalHandlerId>) {
         let handler_id = self.inner.connect_activate(move |mi| {
             menu_items.disable();

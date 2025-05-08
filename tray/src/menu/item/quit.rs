@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gtk::{MenuItem, glib::SignalHandlerId, traits::GtkMenuItemExt};
 
 use crate::{
-    Cooler,
+    Device,
     menu::{MenuItems, item::MenuItemSetup},
 };
 
@@ -26,7 +26,7 @@ impl Default for QuitItem {
 impl MenuItemSetup for QuitItem {
     type MenuItem = MenuItem;
 
-    fn setup(&self, _: Rc<MenuItems>, _: Cooler) -> (&Self::MenuItem, Option<SignalHandlerId>) {
+    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
         (&self.0, Some(self.0.connect_activate(|_| gtk::main_quit())))
     }
 }

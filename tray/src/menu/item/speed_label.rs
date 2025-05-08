@@ -8,7 +8,7 @@ use gtk::{
 use shared::FanSpeed;
 
 use crate::{
-    Cooler,
+    Device,
     menu::{MenuItems, item::MenuItemSetup},
 };
 
@@ -43,7 +43,7 @@ impl Default for SpeedLabelItem {
 impl MenuItemSetup for SpeedLabelItem {
     type MenuItem = MenuItem;
 
-    fn setup(&self, _: Rc<MenuItems>, _: Cooler) -> (&Self::MenuItem, Option<SignalHandlerId>) {
+    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
         (&self.inner, None)
     }
 }

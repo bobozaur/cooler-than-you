@@ -3,7 +3,7 @@ use std::{rc::Rc, time::Duration};
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
 use rusb::{Context, Device as RusbDevice, DeviceHandle, Direction, TransferType, UsbContext};
-use shared::{Command, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID};
+use shared::{DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID};
 
 use crate::AnyResult;
 
@@ -116,7 +116,7 @@ impl Cooler {
 
     ///
     /// # Errors
-    pub fn send_command(&self, command: Command) -> AnyResult<()> {
+    pub fn send_command(&self, command: DeviceCommand) -> AnyResult<()> {
         match self.handle.write_interrupt(
             self.out_endpoint_address,
             &[command.into()],

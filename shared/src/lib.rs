@@ -3,11 +3,11 @@
 
 #![no_std]
 
-mod command;
+mod device_command;
 mod device_state;
 mod fan_speed;
 
-pub use command::Command;
+pub use device_command::DeviceCommand;
 pub use device_state::DeviceState;
 pub use fan_speed::FanSpeed;
 

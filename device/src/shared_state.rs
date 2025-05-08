@@ -2,7 +2,9 @@ use core::cell::RefCell;
 
 use avr_device::interrupt::Mutex;
 use circular_buffer::CircularBuffer;
-use shared::{Command, DeviceState};
+use shared::DeviceState;
+
+use crate::command::Command;
 
 pub static SHARED_STATE: Mutex<RefCell<SharedState>> = Mutex::new(RefCell::new(SharedState::new()));
 const COMMAND_QUEUE_SIZE: usize = 64;

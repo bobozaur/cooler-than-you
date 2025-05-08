@@ -17,7 +17,7 @@ use usb_device::{
 };
 use usbd_hid::{descriptor::SerializedDescriptor, hid_class::HIDClass};
 
-use crate::{interrupt_cell::InterruptCell, shared_state::SHARED_STATE};
+use crate::{command::Command, interrupt_cell::InterruptCell, shared_state::SHARED_STATE};
 
 type UsbBus = AvrGenericUsbBus<Suspender>;
 
@@ -114,7 +114,7 @@ impl UsbContext {
 
             if let Ok(1) = self.hid_class.pull_raw_output(&mut report_buf) {
                 if let Ok(command) = report_buf[0].try_into() {
-                    shared_state.push_command(command);
+                    shared_state.push_command(Command::Device(command));
                 }
             }
         });

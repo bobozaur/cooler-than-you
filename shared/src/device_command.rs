@@ -11,7 +11,7 @@ use thiserror::Error as ThisError;
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(test, derive(strum::EnumIter, PartialEq))]
-pub enum Command {
+pub enum DeviceCommand {
     // Short press on `+` button.
     // Increases fan speed.
     SpeedUp = 1,
@@ -35,24 +35,24 @@ pub enum Command {
     LedsColorChange,
 }
 
-impl From<Command> for u8 {
-    fn from(value: Command) -> Self {
+impl From<DeviceCommand> for u8 {
+    fn from(value: DeviceCommand) -> Self {
         value as Self
     }
 }
 
-impl TryFrom<u8> for Command {
+impl TryFrom<u8> for DeviceCommand {
     type Error = CommandConvError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            1 => Ok(Command::SpeedUp),
-            2 => Ok(Command::SpeedDown),
-            3 => Ok(Command::PowerOn),
-            4 => Ok(Command::PowerOff),
-            5 => Ok(Command::LedsOn),
-            6 => Ok(Command::LedsOff),
-            7 => Ok(Command::LedsColorChange),
+            1 => Ok(DeviceCommand::SpeedUp),
+            2 => Ok(DeviceCommand::SpeedDown),
+            3 => Ok(DeviceCommand::PowerOn),
+            4 => Ok(DeviceCommand::PowerOff),
+            5 => Ok(DeviceCommand::LedsOn),
+            6 => Ok(DeviceCommand::LedsOff),
+            7 => Ok(DeviceCommand::LedsColorChange),
             _ => Err(CommandConvError),
         }
     }
@@ -67,13 +67,13 @@ pub struct CommandConvError;
 mod tests {
     use strum::IntoEnumIterator;
 
-    use super::Command;
+    use super::DeviceCommand;
 
     const MAX_BITS: usize = 3;
 
     #[test]
     fn test_command_conversion() {
-        for command in Command::iter() {
+        for command in DeviceCommand::iter() {
             assert_eq!(command as u8 >> MAX_BITS, 0);
             assert_eq!((command as u8).try_into(), Ok(command));
         }

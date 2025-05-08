@@ -5,7 +5,7 @@ use gtk::{
     glib::{self, ControlFlow, IsA, ObjectExt, SignalHandlerId, SourceId},
     traits::{CheckMenuItemExt, GtkMenuItemExt, WidgetExt},
 };
-use shared::{Command, FanSpeed};
+use shared::{DeviceCommand, FanSpeed};
 use systemstat::{Platform, System};
 
 use super::MenuItems;
@@ -120,7 +120,7 @@ impl AddableMenuItem for SpeedAutoItem {
                         move || {
                             let system = System::new();
                             system.cpu_temp().ok();
-                            device.send_command(Command::SpeedUp).ok();
+                            device.send_command(DeviceCommand::SpeedUp).ok();
                             ControlFlow::Continue
                         }
                     });
@@ -228,7 +228,7 @@ pub trait ItemLabel {
 pub trait CommandItem: ItemLabel {
     type MenuItem: Default + GtkMenuItemExt;
 
-    fn command(mi: &Self::MenuItem) -> Command;
+    fn command(mi: &Self::MenuItem) -> DeviceCommand;
 }
 
 impl ItemLabel for SpeedAuto {
@@ -242,8 +242,8 @@ impl ItemLabel for SpeedUp {
 impl CommandItem for SpeedUp {
     type MenuItem = MenuItem;
 
-    fn command(_: &Self::MenuItem) -> Command {
-        Command::SpeedUp
+    fn command(_: &Self::MenuItem) -> DeviceCommand {
+        DeviceCommand::SpeedUp
     }
 }
 
@@ -254,8 +254,8 @@ impl ItemLabel for SpeedDown {
 impl CommandItem for SpeedDown {
     type MenuItem = MenuItem;
 
-    fn command(_: &Self::MenuItem) -> Command {
-        Command::SpeedDown
+    fn command(_: &Self::MenuItem) -> DeviceCommand {
+        DeviceCommand::SpeedDown
     }
 }
 
@@ -266,8 +266,8 @@ impl ItemLabel for LedsChangeColor {
 impl CommandItem for LedsChangeColor {
     type MenuItem = MenuItem;
 
-    fn command(_: &Self::MenuItem) -> Command {
-        Command::LedsColorChange
+    fn command(_: &Self::MenuItem) -> DeviceCommand {
+        DeviceCommand::LedsColorChange
     }
 }
 
@@ -278,11 +278,11 @@ impl ItemLabel for LedsToggle {
 impl CommandItem for LedsToggle {
     type MenuItem = CheckMenuItem;
 
-    fn command(mi: &Self::MenuItem) -> Command {
+    fn command(mi: &Self::MenuItem) -> DeviceCommand {
         if mi.is_active() {
-            Command::LedsOn
+            DeviceCommand::LedsOn
         } else {
-            Command::LedsOff
+            DeviceCommand::LedsOff
         }
     }
 }
@@ -294,11 +294,11 @@ impl ItemLabel for PowerToggle {
 impl CommandItem for PowerToggle {
     type MenuItem = CheckMenuItem;
 
-    fn command(mi: &Self::MenuItem) -> Command {
+    fn command(mi: &Self::MenuItem) -> DeviceCommand {
         if mi.is_active() {
-            Command::PowerOn
+            DeviceCommand::PowerOn
         } else {
-            Command::PowerOff
+            DeviceCommand::PowerOff
         }
     }
 }

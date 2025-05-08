@@ -1,8 +1,8 @@
 use thiserror::Error as ThisError;
 
 use crate::{
-    Command,
-    command::CommandConvError,
+    DeviceCommand,
+    device_command::CommandConvError,
     fan_speed::{FanSpeed, FanSpeedConvError},
 };
 
@@ -11,7 +11,7 @@ pub struct DeviceState {
     power_enabled: bool,
     leds_enabled: bool,
     fan_speed: FanSpeed,
-    command_to_repeat: Option<Command>,
+    command_to_repeat: Option<DeviceCommand>,
 }
 
 impl PartialEq for DeviceState {
@@ -54,7 +54,7 @@ impl DeviceState {
 
     #[inline]
     #[must_use]
-    pub fn command_to_repeat(&self) -> Option<Command> {
+    pub fn command_to_repeat(&self) -> Option<DeviceCommand> {
         self.command_to_repeat
     }
 
@@ -79,7 +79,7 @@ impl DeviceState {
     }
 
     #[inline]
-    pub fn set_repeat_command(&mut self, command: Option<Command>) {
+    pub fn set_repeat_command(&mut self, command: Option<DeviceCommand>) {
         self.command_to_repeat = command;
     }
 }
@@ -105,7 +105,7 @@ impl TryFrom<u8> for DeviceState {
         let command_to_repeat_byte = value & 0b0000_0111;
 
         let repeat_command = (command_to_repeat_byte != 0)
-            .then(|| Command::try_from(command_to_repeat_byte))
+            .then(|| DeviceCommand::try_from(command_to_repeat_byte))
             .transpose()?;
 
         Ok(Self {

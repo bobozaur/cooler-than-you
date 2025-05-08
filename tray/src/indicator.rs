@@ -6,7 +6,7 @@ use gtk::{
     traits::{MenuShellExt, WidgetExt},
 };
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-use shared::Command;
+use shared::DeviceCommand;
 
 use crate::{AnyResult, Cooler, MenuItems, menu_item::AddableMenuItem};
 
@@ -71,8 +71,8 @@ impl Indicator {
         glib::idle_add_local_once({
             let device = self.device.clone();
             move || {
-                device.send_command(Command::PowerOff).ok();
-                device.send_command(Command::PowerOn).ok();
+                device.send_command(DeviceCommand::PowerOff).ok();
+                device.send_command(DeviceCommand::PowerOn).ok();
             }
         });
 

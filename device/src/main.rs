@@ -3,16 +3,18 @@
 #![feature(abi_avr_interrupt)]
 
 mod button;
+mod command;
 mod interrupt_cell;
 mod shared_state;
 mod timed_monitor;
 mod usb;
 
-use arduino_hal::Pins;
+use arduino_hal::{delay_ms, Pins};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
+use command::Command;
 use panic_halt as _;
-use shared::{Command, FanSpeed};
+use shared::{DeviceCommand, FanSpeed};
 use shared_state::SHARED_STATE;
 use timed_monitor::setup_timed_monitor;
 use usb::setup_usb;
@@ -77,21 +79,22 @@ fn main() -> ! {
             // Omit commands that are inconsistent with the current state.
             loop {
                 break match shared_state.pop_command() {
-                    Some(Command::PowerOn) if power_enabled => continue,
-                    Some(Command::PowerOff) if !power_enabled => continue,
-                    Some(Command::LedsOn) if leds_enabled => continue,
-                    Some(Command::LedsOff) if !leds_enabled => continue,
+                    Some(Command::Device(DeviceCommand::PowerOn)) if power_enabled => continue,
+                    Some(Command::Device(DeviceCommand::PowerOff)) if !power_enabled => continue,
+                    Some(Command::Device(DeviceCommand::LedsOn)) if leds_enabled => continue,
+                    Some(Command::Device(DeviceCommand::LedsOff)) if !leds_enabled => continue,
                     command => command,
                 };
             }
         });
 
         match command {
-            Some(Command::SpeedUp) => speed_up_btn.short_press(),
-            Some(Command::SpeedDown) => speed_down_btn.short_press(),
-            Some(Command::PowerOn | Command::PowerOff) => power_btn.short_press(),
-            Some(Command::LedsOn | Command::LedsOff) => led_btn.long_press(),
-            Some(Command::LedsColorChange) => led_btn.short_press(),
+            Some(Command::Device(DeviceCommand::SpeedUp)) => speed_up_btn.short_press(),
+            Some(Command::Device(DeviceCommand::SpeedDown)) => speed_down_btn.short_press(),
+            Some(Command::Device(DeviceCommand::PowerOn | DeviceCommand::PowerOff)) => power_btn.short_press(),
+            Some(Command::Device(DeviceCommand::LedsOn | DeviceCommand::LedsOff)) => led_btn.long_press(),
+            Some(Command::Device(DeviceCommand::LedsColorChange)) => led_btn.short_press(),
+            Some(Command::Delay275Ms) => delay_ms(275),
             None => sleep(),
         }
     }

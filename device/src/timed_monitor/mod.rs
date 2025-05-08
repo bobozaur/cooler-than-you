@@ -17,7 +17,7 @@ use monitor::{
 use pins::{
     BacklightMonitorPin, LedMonitorPin, PowerMonitorPin, SpeedDownMonitorPin, SpeedUpMonitorPin,
 };
-use shared::{Command, DeviceState};
+use shared::{DeviceCommand, DeviceState};
 
 use crate::{
     interrupt_cell::InterruptCell,
@@ -125,7 +125,7 @@ impl MonitorContext {
                                 shared_state,
                                 backlight_active,
                                 DeviceState::increase_fan_speed,
-                                Command::SpeedUp,
+                                DeviceCommand::SpeedUp,
                             );
                         } else if speed_down_pressed {
                             self.monitor_state = MonitorState::Paused;
@@ -134,7 +134,7 @@ impl MonitorContext {
                                 shared_state,
                                 backlight_active,
                                 DeviceState::decrease_fan_speed,
-                                Command::SpeedDown,
+                                DeviceCommand::SpeedDown,
                             );
                         } else if power_pressed {
                             self.monitor_state = MonitorState::Focused(MonitorFocusKind::Power);
@@ -197,7 +197,7 @@ impl MonitorContext {
         shared_state: &mut SharedState,
         backlight_active: bool,
         state_change_fn: F,
-        repeat_command: Command,
+        repeat_command: DeviceCommand,
     ) where
         F: FnOnce(&mut DeviceState),
     {

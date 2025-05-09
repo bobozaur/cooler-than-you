@@ -1,6 +1,10 @@
 use std::rc::Rc;
 
-use gtk::{CheckMenuItem, glib::SignalHandlerId, traits::CheckMenuItemExt};
+use gtk::{
+    CheckMenuItem,
+    glib::SignalHandlerId,
+    traits::{CheckMenuItemExt, GtkMenuItemExt},
+};
 
 use crate::{
     Device,
@@ -22,8 +26,17 @@ impl ItemLabel for SpeedAuto {
 impl MenuItemSetup for SpeedAutoItem {
     type MenuItem = CheckMenuItem;
 
-    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
+    fn setup(
+        &self,
+        menu_items: Rc<MenuItems>,
+        _: Device,
+    ) -> (&Self::MenuItem, Option<SignalHandlerId>) {
         self.inner.set_active(true);
-        (&self.inner, None)
+
+        let handler_id = self
+            .inner
+            .connect_activate(move |_| menu_items.refresh_speed_items_sensitivity());
+
+        (&self.inner, Some(handler_id))
     }
 }

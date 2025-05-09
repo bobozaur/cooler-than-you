@@ -21,6 +21,10 @@ impl MenuItems {
         Self::default()
     }
 
+    pub fn refresh_speed_items_sensitivity(&self) {
+        self.set_speed_items_sensitive(true);
+    }
+
     pub fn refresh_sensitivity(&self) {
         self.set_sensitive(true);
     }
@@ -29,12 +33,16 @@ impl MenuItems {
         self.set_sensitive(false);
     }
 
-    fn set_sensitive(&self, flag: bool) {
+    fn set_speed_items_sensitive(&self, flag: bool) {
         let enable_speed_ctrl = flag && self.power.is_active() && !self.speed_auto.is_active();
 
         self.speed_auto.set_sensitive(flag);
         self.speed_up.set_sensitive(enable_speed_ctrl);
         self.speed_down.set_sensitive(enable_speed_ctrl);
+    }
+
+    fn set_sensitive(&self, flag: bool) {
+        self.set_speed_items_sensitive(flag);
 
         self.leds.set_sensitive(flag);
         let enable_leds_ctrl = flag && self.leds.is_active();

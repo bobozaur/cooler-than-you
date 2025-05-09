@@ -1,13 +1,17 @@
-use std::{rc::Rc, time::Duration};
+use std::rc::Rc;
 
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
-use rusb::{Context, Device as RusbDevice, DeviceHandle, Direction, TransferType, UsbContext};
-use shared::{
-    DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID,
+use rusb::{
+    Context, Device as RusbDevice, DeviceHandle, Direction, LogCallbackMode, LogLevel,
+    TransferType, UsbContext,
 };
+use shared::{DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_PRODUCT, USB_VID};
 
-use crate::AnyResult;
+use crate::{
+    AnyResult,
+    rusb_async::{self, InterruptTransfer},
+};
 
 #[derive(Clone, Debug)]
 pub struct Device {
@@ -21,8 +25,16 @@ impl Device {
     ///
     /// # Errors
     pub fn new() -> AnyResult<Self> {
-        let handle = Context::new()
-            .context("unable to initialize libusb")?
+        let mut context = Context::new().context("unable to initialize libusb")?;
+        rusb_async::init(&context);
+
+        context.set_log_level(LogLevel::Debug);
+        context.set_log_callback(
+            Box::new(|_, message| println!("{message}")),
+            LogCallbackMode::Global,
+        );
+
+        let handle = context
             .devices()?
             .iter()
             .filter_map(Self::device_filter)
@@ -98,33 +110,27 @@ impl Device {
 
     ///
     /// # Errors
-    pub fn recv_state(&self) -> AnyResult<Option<DeviceState>> {
-        let mut buf = [0; 1];
-
-        match self.handle.read_interrupt(
-            self.in_endpoint_address,
-            &mut buf,
-            Duration::from_millis(USB_POLL_MS.into()),
-        ) {
-            Ok(1) => Ok(Some(DeviceState::try_from(buf[0])?)),
-            Ok(_) => anyhow::bail!("device state not read"),
-            Err(rusb::Error::Timeout) => Ok(None),
-            Err(e) => Err(e)?,
-        }
+    pub async fn recv_state(&self) -> AnyResult<DeviceState> {
+        InterruptTransfer::new(self.handle.clone(), self.in_endpoint_address, vec![0; 1])
+            .await?
+            .into_iter()
+            .exactly_one()
+            .map_err(|e| anyhow!("{e}"))?
+            .try_into()
+            .map_err(From::from)
     }
 
     ///
     /// # Errors
-    pub fn send_command(&self, command: DeviceCommand) -> AnyResult<()> {
-        match self.handle.write_interrupt(
+    pub async fn send_command(&self, command: DeviceCommand) -> AnyResult<()> {
+        InterruptTransfer::new(
+            self.handle.clone(),
             self.out_endpoint_address,
-            &[command.into()],
-            Duration::from_millis(500),
-        ) {
-            Ok(1) => Ok(()),
-            Ok(_) => anyhow::bail!("command not written"),
-            Err(e) => Err(e)?,
-        }
+            vec![command.into(); 1],
+        )
+        .await?;
+
+        Ok(())
     }
 
     #[expect(clippy::needless_pass_by_value, reason = "used in a `filter_map`")]

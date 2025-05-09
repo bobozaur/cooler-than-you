@@ -15,4 +15,3 @@ pub const USB_VID: u16 = 0x16C0;
 pub const USB_PID: u16 = 0x05df;
 pub const USB_MANUFACTURER: &str = "mirceapetrebogdan@gmail.com";
 pub const USB_PRODUCT: &str = "Cooler Than You";
-pub const USB_POLL_MS: u8 = 40;

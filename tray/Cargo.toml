@@ -16,6 +16,7 @@ itertools = { workspace = true }
 libappindicator = { workspace = true }
 rusb = { workspace = true }
 systemstat = { workspace = true }
+libc = "0.2"
 
 [lints]
 workspace = true

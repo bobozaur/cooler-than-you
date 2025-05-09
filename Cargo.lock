@@ -1168,6 +1168,7 @@ dependencies = [
  "gtk",
  "itertools",
  "libappindicator",
+ "libc",
  "rusb",
  "shared",
  "systemstat",

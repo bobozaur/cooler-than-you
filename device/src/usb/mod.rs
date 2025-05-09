@@ -8,7 +8,7 @@ use arduino_hal::{
 };
 use avr_device::interrupt;
 use hid_report::HidReport;
-use shared::{USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID};
+use shared::{USB_MANUFACTURER, USB_PID, USB_PRODUCT, USB_VID};
 use suspender::Suspender;
 use usb_device::{
     LangID,
@@ -21,6 +21,9 @@ use crate::{command::Command, interrupt_cell::InterruptCell, shared_state::SHARE
 
 type UsbBus = AvrGenericUsbBus<Suspender>;
 
+/// Since any action on the device would require at least 40 ms, I assume
+/// there's no reason to poll it much more frequently than that.
+const USB_POLL_MS: u8 = 40;
 static USB_DEVICE: InterruptCell<UsbContext> = InterruptCell::uninit();
 
 pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {

@@ -1,6 +1,7 @@
 mod device;
 mod indicator;
 mod menu;
+mod rusb_async;
 
 pub use anyhow::Result as AnyResult;
 pub use device::Device;

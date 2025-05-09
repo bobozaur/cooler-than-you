@@ -1,10 +1,15 @@
-use std::{cell::Cell, rc::Rc};
+//! TODO:
+//! - disable device unused hardware
+//! - check error handling
+//! - logging
+//! - debian packaging
+//! - comments and docs
+//! - fancy icon
+
+use std::{cell::Cell, rc::Rc, time::Duration};
 
 use anyhow::Context;
-use gtk::{
-    SeparatorMenuItem,
-    glib::{self, ControlFlow},
-};
+use gtk::{SeparatorMenuItem, glib};
 use shared::{DeviceCommand, FanSpeed};
 use systemstat::{Platform, System};
 use tray::{AnyResult, Indicator, QuitItem, SpeedLabelItem};
@@ -34,84 +39,80 @@ fn main() -> AnyResult<()> {
     indicator.add_menu_item(&SeparatorMenuItem::new());
     indicator.add_menu_item(&quit_mi);
 
-    // Frequency with which this is called is determined by the timeout value in
-    // [`Device::recv_state`].
-    glib::idle_add_local({
-        // This will self-adjust, we just start with the lowest speed.
-        // An [`Rc<Cell<FanSpeed>>`] is used here to share the value
-        // between the temperature monitor task and the main background task
-        // because FanSpeed is [`Copy`].
-        let current_fan_speed = Rc::new(Cell::new(FanSpeed::Speed1));
-        let mut auto_adjust_enabled: bool = false;
-        let system = Rc::new(System::new());
+    // This will self-adjust, we just start with the lowest speed.
+    // An [`Rc<Cell<FanSpeed>>`] is used here to share the value
+    // between the temperature monitor task and the main background task
+    // because FanSpeed is [`Copy`].
+    let fan_speed = Rc::new(Cell::new(FanSpeed::Speed1));
 
-        move || {
-            if !auto_adjust_enabled && menu_items.speed_auto.is_active() {
-                glib::timeout_add_seconds_local(1, {
-                    let fan_speed = current_fan_speed.clone();
-                    let device = device.clone();
-                    let menu_items = menu_items.clone();
-                    let system = system.clone();
+    {
+        let fan_speed = fan_speed.clone();
+        let device = device.clone();
+        let menu_items = menu_items.clone();
 
-                    move || {
-                        if let (Ok(temp), fan_speed) = (system.cpu_temp(), fan_speed.get()) {
-                            let command = match fan_speed {
-                                FanSpeed::Speed1 if temp > 60.0 => Some(DeviceCommand::SpeedUp),
-                                FanSpeed::Speed2 if temp > 65.0 => Some(DeviceCommand::SpeedUp),
-                                FanSpeed::Speed3 if temp > 70.0 => Some(DeviceCommand::SpeedUp),
-                                FanSpeed::Speed4 if temp > 75.0 => Some(DeviceCommand::SpeedUp),
-                                FanSpeed::Speed5 if temp > 80.0 => Some(DeviceCommand::SpeedUp),
-                                FanSpeed::Speed6 if temp > 80.0 => None,
-                                FanSpeed::Speed6 => Some(DeviceCommand::SpeedDown),
-                                FanSpeed::Speed5 if temp < 75.0 => Some(DeviceCommand::SpeedDown),
-                                FanSpeed::Speed4 if temp < 70.0 => Some(DeviceCommand::SpeedDown),
-                                FanSpeed::Speed3 if temp < 65.0 => Some(DeviceCommand::SpeedDown),
-                                FanSpeed::Speed2 if temp < 60.0 => Some(DeviceCommand::SpeedDown),
-                                FanSpeed::Speed5
-                                | FanSpeed::Speed4
-                                | FanSpeed::Speed3
-                                | FanSpeed::Speed2
-                                | FanSpeed::Speed1 => None,
-                            };
+        // Frequency with which this is called is determined by the timeout value in
+        // [`Device::recv_state`].
+        glib::spawn_future_local(async move {
+            loop {
+                let device_state = device.recv_state().await.unwrap();
 
-                            if let Some(command) = command {
-                                device.send_command(command).ok();
-                            }
-                        }
+                println!("{device_state:?}");
 
-                        if menu_items.speed_auto.is_active() {
-                            ControlFlow::Continue
-                        } else {
-                            ControlFlow::Break
-                        }
-                    }
-                });
+                let speed = device_state.fan_speed();
+                fan_speed.replace(speed);
+                speed_label.update_speed(speed);
+
+                menu_items
+                    .power
+                    .set_active(device_state.power_enabled(), &power_handler_id);
+                menu_items
+                    .leds
+                    .set_active(device_state.leds_enabled(), &leds_handler_id);
+
+                if let Some(command) = device_state.command_to_repeat() {
+                    device.send_command(command).await.unwrap();
+                    continue;
+                }
+
+                menu_items.refresh_sensitivity();
+            }
+        });
+    }
+
+    glib::spawn_future_local(async move {
+        let system = System::new();
+
+        loop {
+            glib::timeout_future(Duration::from_secs(1)).await;
+
+            if !menu_items.speed_auto.is_active() {
+                continue;
             }
 
-            auto_adjust_enabled = menu_items.speed_auto.is_active();
+            if let (Ok(temp), fan_speed) = (system.cpu_temp(), fan_speed.get()) {
+                let command = match fan_speed {
+                    FanSpeed::Speed1 if temp > 60.0 => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed2 if temp > 65.0 => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed3 if temp > 70.0 => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed4 if temp > 75.0 => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed5 if temp > 80.0 => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed6 if temp > 80.0 => None,
+                    FanSpeed::Speed6 => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed5 if temp < 75.0 => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed4 if temp < 70.0 => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed3 if temp < 65.0 => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed2 if temp < 60.0 => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed5
+                    | FanSpeed::Speed4
+                    | FanSpeed::Speed3
+                    | FanSpeed::Speed2
+                    | FanSpeed::Speed1 => None,
+                };
 
-            let Ok(Some(device_state)) = device.recv_state() else {
-                return ControlFlow::Continue;
-            };
-
-            let fan_speed = device_state.fan_speed();
-            current_fan_speed.replace(fan_speed);
-            speed_label.update_speed(fan_speed);
-
-            menu_items
-                .power
-                .set_active(device_state.power_enabled(), &power_handler_id);
-            menu_items
-                .leds
-                .set_active(device_state.leds_enabled(), &leds_handler_id);
-
-            if let Some(command) = device_state.command_to_repeat() {
-                device.send_command(command).ok();
-                return ControlFlow::Continue;
+                if let Some(command) = command {
+                    device.send_command(command).await.unwrap();
+                }
             }
-
-            menu_items.refresh_sensitivity();
-            ControlFlow::Continue
         }
     });
 

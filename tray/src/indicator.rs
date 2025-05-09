@@ -75,12 +75,9 @@ impl Indicator {
         // We send the commands this way so that the time between them
         // being sent and read is minimal and happens as soon as the event
         // loop is started.
-        glib::idle_add_local_once({
-            let device = self.device.clone();
-            move || {
-                device.send_command(DeviceCommand::PowerOff).ok();
-                device.send_command(DeviceCommand::PowerOn).ok();
-            }
+        glib::spawn_future_local(async move {
+            self.device.send_command(DeviceCommand::PowerOff).await.ok();
+            self.device.send_command(DeviceCommand::PowerOn).await.ok();
         });
 
         gtk::main();

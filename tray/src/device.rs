@@ -3,7 +3,9 @@ use std::{rc::Rc, time::Duration};
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
 use rusb::{Context, Device as RusbDevice, DeviceHandle, Direction, TransferType, UsbContext};
-use shared::{DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID};
+use shared::{
+    DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_POLL_MS, USB_PRODUCT, USB_VID,
+};
 
 use crate::AnyResult;
 
@@ -26,7 +28,8 @@ impl Device {
             .filter_map(Self::device_filter)
             .exactly_one()
             .map(Rc::new)
-            .map_err(|e| anyhow!("{e}"))?;
+            .map_err(|e| anyhow!("{e}"))
+            .context("opening device")?;
 
         let device = handle.device();
         let device_desc = device.device_descriptor().context("device descriptor")?;

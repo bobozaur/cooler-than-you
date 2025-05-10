@@ -99,10 +99,6 @@ impl Device {
     ///
     /// # Errors
     pub fn recv_state(&self) -> AnyResult<Option<DeviceState>> {
-        // TODO: Figure out why something like this is needed.
-        //       Subsequent reads do not succeed otherwise.
-        self.handle.clear_halt(self.in_endpoint_address)?;
-
         let mut buf = [0; 1];
 
         match self.handle.read_interrupt(

@@ -4,10 +4,10 @@ use crate::usb::USB_DEVICE;
 
 #[interrupt(atmega32u4)]
 fn USB_GEN() {
-    USB_DEVICE.as_inner_mut().poll_gen();
+    USB_DEVICE.as_inner_mut().poll();
 }
 
 #[interrupt(atmega32u4)]
 fn USB_COM() {
-    USB_DEVICE.as_inner_mut().poll_com();
+    USB_DEVICE.as_inner_mut().poll();
 }

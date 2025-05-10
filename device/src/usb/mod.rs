@@ -70,40 +70,30 @@ impl UsbContext {
         }
     }
 
-    /// We separate the two interrupt functions because it seems that
-    /// using a [`avr_device::interrupt::Mutex`] within the `USB_GEN` interrupt
-    /// results in the host not enumerating the device correctly.
-    ///
-    /// The exact reason is beyond my understanding. It could be a timing issue
-    /// but I doubt that because the `USB_COM` interrupt is time sensitive as well.
-    ///
-    /// It really looks like contention between the two interrupts, which is surprinsing
-    /// because nested interrupts have to be explicitly enabled, which I don't do. Maybe
-    /// the USB interrupts behave in a slightly different way?
-    ///
-    /// Nevertheless, we don't want to do any data communication in the `USB_GEN` interrupt
-    /// so this approach is more than satisfactory. I just wish I did not spend two days of
-    /// my life troubleshooting this only to encounter this behavior that I cannot really explain.
-    ///
-    /// Simple polling here is enough to provide the report descriptor and handle suspend/resume
-    /// behavior.
+    /// The USB interrupt code.
     #[inline]
-    fn poll_gen(&mut self) {
+    fn poll(&mut self) {
+        // Because this code gets called from both USB interrupts, we want to continue
+        // regardless of what this function returns. Otherwise, failing to access the
+        // [`SHARED_STATE`] would result in no polling being performed.
         self.usb_device.poll(&mut [&mut self.hid_class]);
-    }
 
-    /// The `USB_COM` interrupt code. Unlike [`UsbContext::poll_gen`], we do send data
-    /// in this interrupt so we want to access and serialize the shared state. The
-    /// [`avr_device::interrupt::Mutex`] does not cause any issues here.
-    #[inline]
-    fn poll_com(&mut self) {
         interrupt::free(|cs| {
-            let shared_state = &mut SHARED_STATE.borrow(cs).borrow_mut();
-            let device_state = *shared_state.device_state();
-
-            if !self.usb_device.poll(&mut [&mut self.hid_class]) {
+            // For reasons beyond my understanding, the two USB interrupts seem to contend
+            // on the [`avr_device::interrupt::Mutex`] although, as far as I know, nested interrupts
+            // have to be enabled explicitly, which we do not do. Because of that, the panicking
+            // variant [`std::cell::RefCell::borrow_mut`] crashes the device if used in
+            // both interrupts.
+            //
+            // Initially, I settled on accessing the [`SharedState`] only in the `USB_COM`
+            // interrupt, leaving a simple poll in `USB_GEN`, but that results in USB
+            // reads only working after a write. We therefore only proceed if we
+            // were able to obtain a mutable reference and return early otherwise.
+            let Ok(shared_state) = &mut SHARED_STATE.borrow(cs).try_borrow_mut() else {
                 return;
-            }
+            };
+
+            let device_state = *shared_state.device_state();
 
             shared_state.if_send_state(|| {
                 let res = self.hid_class.push_raw_input(&[device_state.into()]);

@@ -114,7 +114,7 @@ impl InterruptTransfer {
     fn monitor_pollfd(context: Context, fd: RawFd, events: libc::c_short) {
         let condition = IOCondition::from_bits_truncate(events.try_into().unwrap());
 
-        let handle_events_fn = move |_fd, _condition| {
+        let handle_events_fn = move |_, _| {
             context.handle_events(Some(Duration::ZERO)).unwrap();
             ControlFlow::Continue
         };

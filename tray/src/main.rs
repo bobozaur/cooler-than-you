@@ -56,8 +56,6 @@ fn main() -> AnyResult<()> {
             loop {
                 let device_state = device.recv_state().await.unwrap();
 
-                println!("{device_state:?}");
-
                 let speed = device_state.fan_speed();
                 fan_speed.replace(speed);
                 speed_label.update_speed(speed);

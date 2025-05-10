@@ -26,13 +26,12 @@ impl Device {
     /// # Errors
     pub fn new() -> AnyResult<Self> {
         let mut context = Context::new().context("unable to initialize libusb")?;
-        rusb_async::init(&context);
 
-        context.set_log_level(LogLevel::Debug);
-        context.set_log_callback(
-            Box::new(|_, message| println!("{message}")),
-            LogCallbackMode::Global,
-        );
+        let log_fn = Box::new(|_, message| eprintln!("{message}"));
+        context.set_log_level(LogLevel::Warning);
+        context.set_log_callback(log_fn, LogCallbackMode::Global);
+
+        rusb_async::init(&context);
 
         let handle = context
             .devices()?

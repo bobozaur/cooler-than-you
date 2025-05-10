@@ -6,16 +6,15 @@ use rusb::{
     Context, Device as RusbDevice, DeviceHandle, Direction, LogCallbackMode, LogLevel,
     TransferType, UsbContext,
 };
+use rusb_async::{FdHandler, InterruptTransfer};
 use shared::{DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_PRODUCT, USB_VID};
 
-use crate::{
-    AnyResult,
-    rusb_async::{self, InterruptTransfer},
-};
+use crate::{AnyResult, fd_handler::GlibFdHandlerContext};
 
 #[derive(Clone, Debug)]
 pub struct Device {
     handle: Rc<DeviceHandle<Context>>,
+    fd_handler: Rc<FdHandler<GlibFdHandlerContext>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
@@ -31,7 +30,7 @@ impl Device {
         context.set_log_level(LogLevel::Warning);
         context.set_log_callback(log_fn, LogCallbackMode::Global);
 
-        rusb_async::init(&context);
+        let fd_handler = Rc::new(FdHandler::new(GlibFdHandlerContext::new(context.clone())));
 
         let handle = context
             .devices()?
@@ -99,6 +98,7 @@ impl Device {
 
         let cooler = Self {
             handle,
+            fd_handler,
             interface_number,
             in_endpoint_address,
             out_endpoint_address,
@@ -110,13 +110,18 @@ impl Device {
     ///
     /// # Errors
     pub async fn recv_state(&self) -> AnyResult<DeviceState> {
-        InterruptTransfer::new(self.handle.clone(), self.in_endpoint_address, vec![0; 1])
-            .await?
-            .into_iter()
-            .exactly_one()
-            .map_err(|e| anyhow!("{e}"))?
-            .try_into()
-            .map_err(From::from)
+        InterruptTransfer::new(
+            self.handle.clone(),
+            self.in_endpoint_address,
+            vec![0; 1],
+            &self.fd_handler,
+        )?
+        .await?
+        .into_iter()
+        .exactly_one()
+        .map_err(|e| anyhow!("{e}"))?
+        .try_into()
+        .map_err(From::from)
     }
 
     ///
@@ -126,7 +131,8 @@ impl Device {
             self.handle.clone(),
             self.out_endpoint_address,
             vec![command.into(); 1],
-        )
+            &self.fd_handler,
+        )?
         .await?;
 
         Ok(())

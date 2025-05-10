@@ -1,15 +1,12 @@
 use std::{
     convert::TryInto,
-    os::fd::RawFd,
     ptr::NonNull,
     rc::Rc,
     task::{Poll, Waker},
-    time::Duration,
 };
 
-use gtk::glib::{self, ControlFlow, IOCondition};
 use rusb::{
-    Context, DeviceHandle, Error, Result, UsbContext,
+    Context, DeviceHandle, Error, Result,
     constants::{
         LIBUSB_ENDPOINT_DIR_MASK, LIBUSB_ENDPOINT_OUT, LIBUSB_ERROR_INVALID_PARAM,
         LIBUSB_ERROR_NO_DEVICE, LIBUSB_ERROR_NOT_SUPPORTED, LIBUSB_TRANSFER_CANCELLED,
@@ -19,6 +16,9 @@ use rusb::{
     ffi,
 };
 
+use crate::{FdHandler, FdHandlerContext};
+
+#[derive(Debug)]
 pub struct InterruptTransfer {
     dev_handle: Rc<DeviceHandle<Context>>,
     endpoint: u8,
@@ -28,21 +28,30 @@ pub struct InterruptTransfer {
 }
 
 impl InterruptTransfer {
-    pub fn new(dev_handle: Rc<DeviceHandle<Context>>, endpoint: u8, buffer: Vec<u8>) -> Self {
+    /// # Errors
+    pub fn new<T>(
+        dev_handle: Rc<DeviceHandle<Context>>,
+        endpoint: u8,
+        buffer: Vec<u8>,
+        _fd_handler: &FdHandler<T>,
+    ) -> Result<Self>
+    where
+        T: FdHandlerContext,
+    {
         // non-isochronous endpoints (e.g. control, bulk, interrupt) specify a value of 0
         // This is step 1 of async API
 
-        let ptr = unsafe {
-            NonNull::new(ffi::libusb_alloc_transfer(0)).expect("Could not allocate transfer!")
+        let Some(ptr) = NonNull::new(unsafe { ffi::libusb_alloc_transfer(0) }) else {
+            return Err(Error::Other);
         };
 
-        Self {
+        Ok(Self {
             dev_handle,
             endpoint,
             ptr,
             buffer,
             state: TransferState::MustSubmit,
-        }
+        })
     }
 
     // Step 3 of async API
@@ -57,7 +66,7 @@ impl InterruptTransfer {
         .try_into()
         .unwrap();
 
-        let user_data = Box::into_raw(Box::new(waker)).cast::<libc::c_void>();
+        let user_data = Box::into_raw(Box::new(waker)).cast();
 
         unsafe {
             ffi::libusb_fill_interrupt_transfer(
@@ -100,25 +109,6 @@ impl InterruptTransfer {
                 Box::from_raw(transfer.user_data.cast::<Waker>()).wake();
             }
         };
-    }
-
-    extern "system" fn fd_added_cb(
-        fd: libc::c_int,
-        events: libc::c_short,
-        user_data: *mut libc::c_void,
-    ) {
-        let context = unsafe { Context::from_raw(user_data.cast()) };
-        Self::monitor_pollfd(context, fd, events);
-    }
-
-    fn monitor_pollfd(context: Context, fd: RawFd, events: libc::c_short) {
-        let condition = IOCondition::from_bits_truncate(events.try_into().unwrap());
-
-        let handle_events_fn = move |_, _| {
-            context.handle_events(Some(Duration::ZERO)).unwrap();
-            ControlFlow::Continue
-        };
-        glib::source::unix_fd_add_local(fd, condition, handle_events_fn);
     }
 
     /// Prerequisite: self.buffer ans self.ptr are both correctly set
@@ -198,33 +188,9 @@ impl Drop for InterruptTransfer {
     }
 }
 
+#[derive(Debug)]
 enum TransferState {
     MustSubmit,
     MustPoll,
     Completed,
-}
-
-pub fn init(context: &Context) {
-    unsafe {
-        let pollfds_ptr = ffi::libusb_get_pollfds(context.as_raw());
-
-        let mut current = pollfds_ptr;
-
-        while !(*current).is_null() {
-            let pollfd = &**current;
-
-            let fd = pollfd.fd;
-            let events = pollfd.events;
-
-            InterruptTransfer::monitor_pollfd(context.clone(), fd, events);
-            current = current.add(1);
-        }
-
-        ffi::libusb_set_pollfd_notifiers(
-            context.as_raw(),
-            Some(InterruptTransfer::fd_added_cb),
-            None,
-            context.as_raw().cast(),
-        );
-    }
 }

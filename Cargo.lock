@@ -885,6 +885,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusb_async"
+version = "0.1.0"
+dependencies = [
+ "rusb",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1168,8 +1175,8 @@ dependencies = [
  "gtk",
  "itertools",
  "libappindicator",
- "libc",
  "rusb",
+ "rusb_async",
  "shared",
  "systemstat",
 ]

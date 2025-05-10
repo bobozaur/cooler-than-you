@@ -15,8 +15,8 @@ gtk = { workspace = true }
 itertools = { workspace = true }
 libappindicator = { workspace = true }
 rusb = { workspace = true }
+rusb_async = { workspace = true }
 systemstat = { workspace = true }
-libc = "0.2"
 
 [lints]
 workspace = true

@@ -1,7 +1,7 @@
 mod device;
+mod fd_handler;
 mod indicator;
 mod menu;
-mod rusb_async;
 
 pub use anyhow::Result as AnyResult;
 pub use device::Device;

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use anyhow::{Context as _, anyhow};
 use itertools::Itertools;
@@ -13,8 +13,10 @@ use crate::{AnyResult, fd_handler::GlibFdHandlerContext};
 
 #[derive(Clone, Debug)]
 pub struct Device {
-    handle: Rc<DeviceHandle<Context>>,
-    fd_handler: Rc<FdHandler<GlibFdHandlerContext>>,
+    /// Using an [`Arc`] because that's what the async libusb transfers
+    /// required on construction.
+    handle: Arc<DeviceHandle<Context>>,
+    fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
@@ -37,7 +39,7 @@ impl Device {
             .iter()
             .filter_map(Self::device_filter)
             .exactly_one()
-            .map(Rc::new)
+            .map(Arc::new)
             .map_err(|e| anyhow!("{e}"))
             .context("opening device")?;
 

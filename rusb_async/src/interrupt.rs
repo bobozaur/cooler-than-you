@@ -1,12 +1,12 @@
 use std::{
     convert::TryInto,
     ptr::NonNull,
-    rc::Rc,
+    sync::Arc,
     task::{Poll, Waker},
 };
 
 use rusb::{
-    Context, DeviceHandle, Error, Result,
+    DeviceHandle, Error, Result, UsbContext,
     constants::{
         LIBUSB_ENDPOINT_DIR_MASK, LIBUSB_ENDPOINT_OUT, LIBUSB_ERROR_INVALID_PARAM,
         LIBUSB_ERROR_NO_DEVICE, LIBUSB_ERROR_NOT_SUPPORTED, LIBUSB_TRANSFER_CANCELLED,
@@ -16,27 +16,33 @@ use rusb::{
     ffi,
 };
 
-use crate::{FdHandler, FdHandlerContext};
+use crate::{FdHandler, FdMonitor};
 
 #[derive(Debug)]
-pub struct InterruptTransfer {
-    dev_handle: Rc<DeviceHandle<Context>>,
+pub struct InterruptTransfer<C>
+where
+    C: UsbContext,
+{
+    dev_handle: Arc<DeviceHandle<C>>,
     endpoint: u8,
     ptr: NonNull<ffi::libusb_transfer>,
     buffer: Vec<u8>,
     state: TransferState,
 }
 
-impl InterruptTransfer {
+impl<C> InterruptTransfer<C>
+where
+    C: UsbContext,
+{
     /// # Errors
-    pub fn new<T>(
-        dev_handle: Rc<DeviceHandle<Context>>,
+    pub fn new<M>(
+        dev_handle: Arc<DeviceHandle<C>>,
         endpoint: u8,
         buffer: Vec<u8>,
-        _fd_handler: &FdHandler<T>,
+        _fd_handler: &FdHandler<C, M>,
     ) -> Result<Self>
     where
-        T: FdHandlerContext,
+        M: FdMonitor<C>,
     {
         // non-isochronous endpoints (e.g. control, bulk, interrupt) specify a value of 0
         // This is step 1 of async API
@@ -75,7 +81,7 @@ impl InterruptTransfer {
                 self.endpoint,
                 self.buffer.as_mut_ptr(),
                 length,
-                InterruptTransfer::transfer_cb,
+                Self::transfer_cb,
                 user_data,
                 0,
             );
@@ -155,7 +161,10 @@ impl InterruptTransfer {
     }
 }
 
-impl Future for InterruptTransfer {
+impl<C> Future for InterruptTransfer<C>
+where
+    C: UsbContext,
+{
     type Output = Result<Vec<u8>>;
 
     fn poll(
@@ -177,7 +186,10 @@ impl Future for InterruptTransfer {
     }
 }
 
-impl Drop for InterruptTransfer {
+impl<C> Drop for InterruptTransfer<C>
+where
+    C: UsbContext,
+{
     fn drop(&mut self) {
         match self.state {
             TransferState::MustPoll => self.cancel(),

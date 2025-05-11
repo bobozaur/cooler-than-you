@@ -1,37 +1,44 @@
 use std::{
     ffi::{c_int, c_short, c_void},
+    marker::PhantomData,
     os::fd::RawFd,
     ptr::{self, NonNull},
 };
 
-use rusb::ffi::{self, libusb_context};
+use rusb::{UsbContext, ffi};
 
 #[derive(Debug)]
-pub struct FdHandler<T>(*mut T)
+pub struct FdHandler<C, M>
 where
-    T: FdHandlerContext;
-
-impl<T> FdHandler<T>
-where
-    T: FdHandlerContext,
+    C: UsbContext,
+    M: FdMonitor<C>,
 {
-    pub fn new(handler_context: T) -> Self {
-        let context = handler_context.raw_context();
+    fd_monitor_ptr: *mut M,
+    context: PhantomData<fn() -> C>,
+}
+
+impl<C, M> FdHandler<C, M>
+where
+    C: UsbContext,
+    M: FdMonitor<C>,
+{
+    pub fn new(fd_monitor: M) -> Self {
+        let context = fd_monitor.context().as_raw();
 
         unsafe {
-            if let Some(mut pollfds_ptr) = NonNull::new(ffi::libusb_get_pollfds(context).cast_mut())
-            {
+            let pollfds_opt_ptr = NonNull::new(ffi::libusb_get_pollfds(context).cast_mut());
+            if let Some(mut pollfds_ptr) = pollfds_opt_ptr {
                 while let Some(pollfd) = NonNull::new(*pollfds_ptr.as_ptr()) {
                     let fd = pollfd.as_ref().fd;
                     let events = pollfd.as_ref().events;
 
-                    handler_context.fd_added(fd, events);
+                    fd_monitor.fd_added(fd, events);
                     pollfds_ptr = pollfds_ptr.add(1);
                 }
             }
 
-            let handler_context = Box::into_raw(Box::new(handler_context));
-            let user_data = handler_context.cast();
+            let fd_monitor_ptr = Box::into_raw(Box::new(fd_monitor));
+            let user_data = fd_monitor_ptr.cast();
 
             ffi::libusb_set_pollfd_notifiers(
                 context,
@@ -40,35 +47,33 @@ where
                 user_data,
             );
 
-            Self(handler_context)
+            Self {
+                fd_monitor_ptr,
+                context: PhantomData,
+            }
         }
     }
 
-    extern "system" fn fd_added_cb(fd: c_int, events: c_short, user_data: *mut c_void)
-    where
-        T: FdHandlerContext,
-    {
-        unsafe { &*user_data.cast::<T>() }.fd_added(fd, events);
+    extern "system" fn fd_added_cb(fd: c_int, events: c_short, user_data: *mut c_void) {
+        unsafe { &*user_data.cast::<M>() }.fd_added(fd, events);
     }
 
-    extern "system" fn fd_removed_cb(fd: c_int, user_data: *mut c_void)
-    where
-        T: FdHandlerContext,
-    {
-        unsafe { &*user_data.cast::<T>() }.fd_removed(fd);
+    extern "system" fn fd_removed_cb(fd: c_int, user_data: *mut c_void) {
+        unsafe { &*user_data.cast::<M>() }.fd_removed(fd);
     }
 }
 
-impl<T> Drop for FdHandler<T>
+impl<C, M> Drop for FdHandler<C, M>
 where
-    T: FdHandlerContext,
+    C: UsbContext,
+    M: FdMonitor<C>,
 {
     fn drop(&mut self) {
         unsafe {
-            let handler_context = Box::from_raw(self.0);
+            let fd_monitor = Box::from_raw(self.fd_monitor_ptr);
 
             ffi::libusb_set_pollfd_notifiers(
-                handler_context.raw_context(),
+                fd_monitor.context().as_raw(),
                 None,
                 None,
                 ptr::null_mut(),
@@ -77,8 +82,11 @@ where
     }
 }
 
-pub trait FdHandlerContext {
-    fn raw_context(&self) -> *mut libusb_context;
+pub trait FdMonitor<C>
+where
+    C: UsbContext,
+{
+    fn context(&self) -> &C;
 
     fn fd_added(&self, fd: RawFd, events: c_short);
 

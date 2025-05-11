@@ -1,25 +1,38 @@
+mod bulk;
+mod control;
+mod interrupt;
+mod isochronous;
+
 use std::{
     convert::TryInto,
+    ffi::c_int,
     ptr::NonNull,
     sync::Arc,
     task::{Poll, Waker},
 };
 
+pub use bulk::BulkTransfer;
+pub use control::{ControlTransfer, RawControlTransfer};
+pub use interrupt::InterruptTransfer;
+pub use isochronous::IsochronousTransfer;
 use rusb::{
-    DeviceHandle, Error, Result, UsbContext,
-    constants::{
-        LIBUSB_ENDPOINT_DIR_MASK, LIBUSB_ENDPOINT_OUT, LIBUSB_ERROR_INVALID_PARAM,
-        LIBUSB_ERROR_NO_DEVICE, LIBUSB_ERROR_NOT_SUPPORTED, LIBUSB_TRANSFER_CANCELLED,
-        LIBUSB_TRANSFER_COMPLETED, LIBUSB_TRANSFER_ERROR, LIBUSB_TRANSFER_NO_DEVICE,
-        LIBUSB_TRANSFER_OVERFLOW, LIBUSB_TRANSFER_STALL, LIBUSB_TRANSFER_TIMED_OUT,
+    DeviceHandle, UsbContext,
+    constants::LIBUSB_ERROR_BUSY,
+    ffi::{
+        self,
+        constants::{
+            LIBUSB_ERROR_INVALID_PARAM, LIBUSB_ERROR_NO_DEVICE, LIBUSB_ERROR_NOT_SUPPORTED,
+            LIBUSB_TRANSFER_CANCELLED, LIBUSB_TRANSFER_COMPLETED, LIBUSB_TRANSFER_ERROR,
+            LIBUSB_TRANSFER_NO_DEVICE, LIBUSB_TRANSFER_OVERFLOW, LIBUSB_TRANSFER_STALL,
+            LIBUSB_TRANSFER_TIMED_OUT,
+        },
     },
-    ffi,
 };
 
-use crate::{FdHandler, FdMonitor};
+use crate::error::{Error, Result};
 
 #[derive(Debug)]
-pub struct InterruptTransfer<C>
+pub struct Transfer<C, K>
 where
     C: UsbContext,
 {
@@ -27,28 +40,26 @@ where
     endpoint: u8,
     ptr: NonNull<ffi::libusb_transfer>,
     buffer: Vec<u8>,
+    kind: K,
     state: TransferState,
 }
 
-impl<C> InterruptTransfer<C>
+impl<C, K> Transfer<C, K>
 where
     C: UsbContext,
 {
-    /// # Errors
-    pub fn new<M>(
+    /// This is step 1 of async API.
+    fn alloc(
         dev_handle: Arc<DeviceHandle<C>>,
         endpoint: u8,
         buffer: Vec<u8>,
-        _fd_handler: &FdHandler<C, M>,
-    ) -> Result<Self>
-    where
-        M: FdMonitor<C>,
-    {
+        kind: K,
+        iso_packets: c_int,
+    ) -> Result<Self> {
         // non-isochronous endpoints (e.g. control, bulk, interrupt) specify a value of 0
-        // This is step 1 of async API
 
-        let Some(ptr) = NonNull::new(unsafe { ffi::libusb_alloc_transfer(0) }) else {
-            return Err(Error::Other);
+        let Some(ptr) = NonNull::new(unsafe { ffi::libusb_alloc_transfer(iso_packets) }) else {
+            return Err(Error::TransferAlloc);
         };
 
         Ok(Self {
@@ -56,45 +67,26 @@ where
             endpoint,
             ptr,
             buffer,
+            kind,
             state: TransferState::MustSubmit,
         })
     }
 
     // Step 3 of async API
-    fn submit(&mut self, waker: Waker) -> Result<()> {
-        let length = if self.endpoint & LIBUSB_ENDPOINT_DIR_MASK == LIBUSB_ENDPOINT_OUT {
-            // for OUT endpoints: the currently valid data in the buffer
-            self.buffer.len()
-        } else {
-            // for IN endpoints: the full capacity
-            self.buffer.capacity()
-        }
-        .try_into()
-        .unwrap();
-
-        let user_data = Box::into_raw(Box::new(waker)).cast();
-
-        unsafe {
-            ffi::libusb_fill_interrupt_transfer(
-                self.ptr.as_ptr(),
-                self.dev_handle.as_raw(),
-                self.endpoint,
-                self.buffer.as_mut_ptr(),
-                length,
-                Self::transfer_cb,
-                user_data,
-                0,
-            );
-        }
-
+    fn submit(&mut self) -> Result<()> {
         let errno = unsafe { ffi::libusb_submit_transfer(self.ptr.as_ptr()) };
 
         match errno {
             0 => Ok(()),
-            LIBUSB_ERROR_NO_DEVICE => Err(Error::NoDevice),
-            LIBUSB_ERROR_NOT_SUPPORTED => Err(Error::NotSupported),
-            LIBUSB_ERROR_INVALID_PARAM => Err(Error::InvalidParam),
-            _ => Err(Error::Other),
+            LIBUSB_ERROR_NO_DEVICE => Err(Error::Disconnected),
+            LIBUSB_ERROR_BUSY => {
+                unreachable!("We shouldn't be calling submit on transfers already submitted!")
+            }
+            LIBUSB_ERROR_NOT_SUPPORTED => Err(Error::Other("Transfer not supported")),
+            LIBUSB_ERROR_INVALID_PARAM => {
+                Err(Error::Other("Transfer size bigger than OS supports"))
+            }
+            _ => Err(Error::Errno("Error while submitting transfer: ", errno)),
         }
     }
 
@@ -125,11 +117,10 @@ where
             self.buffer.set_len(len);
         }
 
-        let transfer_struct = unsafe { self.ptr.as_mut() };
-
         let data = std::mem::take(&mut self.buffer);
 
         // Update transfer struct for new buffer
+        let transfer_struct = unsafe { self.ptr.as_mut() };
         transfer_struct.actual_length = 0; // TODO: Is this necessary?
         transfer_struct.buffer = self.buffer.as_mut_ptr();
         transfer_struct.length = self.buffer.capacity().try_into().unwrap();
@@ -149,21 +140,24 @@ where
     fn handle_completed(&mut self) -> Result<Vec<u8>> {
         let err = match self.transfer().status {
             LIBUSB_TRANSFER_COMPLETED => return Ok(self.take_buffer()),
-            LIBUSB_TRANSFER_CANCELLED => Error::Interrupted,
-            LIBUSB_TRANSFER_NO_DEVICE => Error::NoDevice,
+            LIBUSB_TRANSFER_CANCELLED => Error::Cancelled,
+            LIBUSB_TRANSFER_ERROR => Error::Other("Error occurred during transfer execution"),
+            LIBUSB_TRANSFER_TIMED_OUT => {
+                unreachable!("We are using timeout=0 which means no timeout")
+            }
+            LIBUSB_TRANSFER_STALL => Error::Stall,
+            LIBUSB_TRANSFER_NO_DEVICE => Error::Disconnected,
             LIBUSB_TRANSFER_OVERFLOW => Error::Overflow,
-            LIBUSB_TRANSFER_TIMED_OUT => Error::Timeout,
-            LIBUSB_TRANSFER_STALL => Error::Pipe,
-            LIBUSB_TRANSFER_ERROR => Error::Io,
-            _ => Error::Other,
+            _ => panic!("Found an unexpected error value for transfer status"),
         };
         Err(err)
     }
 }
 
-impl<C> Future for InterruptTransfer<C>
+impl<C, K> Future for Transfer<C, K>
 where
     C: UsbContext,
+    Self: FillTransfer,
 {
     type Output = Result<Vec<u8>>;
 
@@ -173,7 +167,8 @@ where
     ) -> Poll<Self::Output> {
         match self.state {
             TransferState::MustSubmit => {
-                self.submit(cx.waker().clone())?;
+                self.fill(cx.waker().clone())?;
+                self.submit()?;
                 self.state = TransferState::MustPoll;
                 Poll::Pending
             }
@@ -181,12 +176,13 @@ where
                 self.state = TransferState::Completed;
                 Poll::Ready(self.handle_completed())
             }
-            TransferState::Completed => Poll::Ready(Err(Error::Other)),
+            TransferState::Completed => Poll::Pending,
         }
     }
 }
 
-impl<C> Drop for InterruptTransfer<C>
+/// Step 5 of the async API.
+impl<C, K> Drop for Transfer<C, K>
 where
     C: UsbContext,
 {
@@ -205,4 +201,9 @@ enum TransferState {
     MustSubmit,
     MustPoll,
     Completed,
+}
+
+/// Step 2 of the async API.
+trait FillTransfer: Sized + Unpin {
+    fn fill(&mut self, waker: Waker) -> Result<()>;
 }

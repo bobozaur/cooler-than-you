@@ -9,7 +9,7 @@ use rusb::{
 use crate::{
     error::{Error, Result},
     fd::{FdHandler, FdMonitor},
-    transfer::{FillTransfer, SingleBufferTransfer, Transfer},
+    transfer::{FillTransfer, SingleBufferTransfer, Transfer, TransferState},
 };
 
 pub type InterruptTransfer<C> = Transfer<C, Interrupt>;
@@ -36,11 +36,12 @@ where
     }
 
     /// # Errors
-    pub fn refresh<M>(&mut self, buffer: Vec<u8>, _fd_handler: &FdHandler<C, M>) -> Result<()>
+    pub fn reuse<M>(&mut self, buffer: Vec<u8>, _fd_handler: &FdHandler<C, M>) -> Result<()>
     where
         M: FdMonitor<C>,
     {
         self.swap_buffer(buffer)?;
+        self.state = TransferState::Allocated;
         Ok(())
     }
 }

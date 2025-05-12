@@ -141,16 +141,17 @@ where
     }
 
     /// Prerequisite: self.buffer ans self.ptr are both correctly set
-    fn swap_buffer(&mut self, mut buffer: Vec<u8>) -> Result<<Self as CompleteTransfer>::Output> {
+    fn swap_buffer(&mut self, buffer: Vec<u8>) -> Result<<Self as CompleteTransfer>::Output> {
         debug_assert!(self.transfer().length >= self.transfer().actual_length);
+
+        let data = std::mem::replace(&mut self.buffer, buffer);
 
         // Update transfer struct for new buffer
         let transfer_struct = unsafe { self.ptr.as_mut() };
         transfer_struct.actual_length = 0; // TODO: Is this necessary?
-        transfer_struct.length = buffer.capacity().try_into().unwrap();
-        transfer_struct.buffer = buffer.as_mut_ptr();
+        transfer_struct.buffer = self.buffer.as_mut_ptr();
+        transfer_struct.length = self.buffer.capacity().try_into().unwrap();
 
-        let data = std::mem::replace(&mut self.buffer, buffer);
         self.consume_buffer(data)
     }
 }
@@ -238,6 +239,7 @@ where
     fn consume_buffer(&mut self, mut buffer: Vec<u8>) -> Result<Self::Output> {
         let len = self.transfer().actual_length.try_into().unwrap();
         unsafe { buffer.set_len(len) };
+        println!("{len}- {buffer:?}");
         Ok(buffer)
     }
 }

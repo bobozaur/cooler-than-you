@@ -16,7 +16,7 @@ pub struct Device {
     /// Using an [`Arc`] because that's what the async libusb transfers
     /// required on construction.
     handle: Arc<DeviceHandle<Context>>,
-    fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
+    pub fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
@@ -123,6 +123,17 @@ impl Device {
         .exactly_one()
         .map_err(|e| anyhow!("{e}"))?
         .try_into()
+        .map_err(From::from)
+    }
+
+    /// # Errors
+    pub fn in_interrupt(&self) -> AnyResult<InterruptTransfer<Context>> {
+        InterruptTransfer::new(
+            self.handle.clone(),
+            self.in_endpoint_address,
+            vec![0; 1],
+            &self.fd_handler,
+        )
         .map_err(From::from)
     }
 

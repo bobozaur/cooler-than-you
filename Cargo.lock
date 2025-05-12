@@ -1172,6 +1172,8 @@ name = "tray"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures-core",
+ "futures-util",
  "gtk",
  "itertools",
  "libappindicator",

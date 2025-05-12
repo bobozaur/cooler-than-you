@@ -1,6 +1,12 @@
-use std::{rc::Rc, sync::Arc};
+use std::{
+    rc::Rc,
+    sync::Arc,
+    task::{Poll, ready},
+};
 
 use anyhow::{Context as _, anyhow};
+use futures_core::Stream;
+use futures_util::FutureExt;
 use itertools::Itertools;
 use rusb::{
     Context, Device as RusbDevice, DeviceHandle, Direction, LogCallbackMode, LogLevel,
@@ -16,7 +22,7 @@ pub struct Device {
     /// Using an [`Arc`] because that's what the async libusb transfers
     /// required on construction.
     handle: Arc<DeviceHandle<Context>>,
-    pub fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
+    fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
@@ -109,32 +115,20 @@ impl Device {
         Ok(cooler)
     }
 
-    ///
     /// # Errors
-    pub async fn recv_state(&self) -> AnyResult<DeviceState> {
-        InterruptTransfer::new(
+    pub fn state_stream(&self) -> AnyResult<DeviceStateStream> {
+        let transfer = InterruptTransfer::new(
             self.handle.clone(),
             self.in_endpoint_address,
             vec![0; 1],
             &self.fd_handler,
-        )?
-        .await?
-        .into_iter()
-        .exactly_one()
-        .map_err(|e| anyhow!("{e}"))?
-        .try_into()
-        .map_err(From::from)
-    }
+        )?;
 
-    /// # Errors
-    pub fn in_interrupt(&self) -> AnyResult<InterruptTransfer<Context>> {
-        InterruptTransfer::new(
-            self.handle.clone(),
-            self.in_endpoint_address,
-            vec![0; 1],
-            &self.fd_handler,
-        )
-        .map_err(From::from)
+        Ok(DeviceStateStream {
+            transfer,
+            fd_handler: self.fd_handler.clone(),
+            in_endpoint_address: self.in_endpoint_address,
+        })
     }
 
     ///
@@ -176,5 +170,33 @@ impl Drop for Device {
         if let Ok(false) = self.handle.kernel_driver_active(self.interface_number) {
             self.handle.attach_kernel_driver(self.interface_number).ok();
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeviceStateStream {
+    transfer: InterruptTransfer<Context>,
+    fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
+    in_endpoint_address: u8,
+}
+
+impl Stream for DeviceStateStream {
+    type Item = AnyResult<DeviceState>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        let state = ready!(self.transfer.poll_unpin(cx))?
+            .into_iter()
+            .exactly_one()
+            .map_err(|e| anyhow!("{e}"))?
+            .try_into()?;
+
+        let fd_handler = self.fd_handler.clone();
+        let endpoint = self.in_endpoint_address;
+        self.transfer.reuse(endpoint, vec![0; 1], &fd_handler)?;
+
+        Poll::Ready(Some(Ok(state)))
     }
 }

@@ -9,9 +9,9 @@
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use anyhow::Context;
+use futures_util::StreamExt;
 use gtk::{SeparatorMenuItem, glib};
-use itertools::Itertools;
-use shared::{DeviceCommand, DeviceState, FanSpeed};
+use shared::{DeviceCommand, FanSpeed};
 use systemstat::{Platform, System};
 use tray::{AnyResult, Indicator, QuitItem, SpeedLabelItem};
 
@@ -54,20 +54,10 @@ fn main() -> AnyResult<()> {
         // Frequency with which this is called is determined by the timeout value in
         // [`Device::recv_state`].
         glib::spawn_future_local(async move {
-            let mut in_interrupt = device.in_interrupt().unwrap();
+            let mut state_stream = device.state_stream().unwrap();
 
-            loop {
-                let device_state: DeviceState = (&mut in_interrupt)
-                    .await
-                    .unwrap()
-                    .into_iter()
-                    .exactly_one()
-                    .map_err(|e| anyhow::anyhow!("{e}"))
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-
-                in_interrupt.reuse(vec![0; 1], &device.fd_handler).unwrap();
+            while let Some(state_opt) = state_stream.next().await {
+                let device_state = state_opt.unwrap();
 
                 let speed = device_state.fan_speed();
                 fan_speed.replace(speed);

@@ -11,6 +11,8 @@ shared = { workspace = true }
 
 # External
 anyhow = { workspace = true }
+futures-core = { workspace = true }
+futures-util = { workspace = true }
 gtk = { workspace = true }
 itertools = { workspace = true }
 libappindicator = { workspace = true }

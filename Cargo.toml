@@ -20,9 +20,11 @@ arduino-hal = { git = "https://github.com/rahix/avr-hal", rev = "8a47b1f66136ddf
 ] }
 avr-device = { version = "0.5", default-features = false }
 circular-buffer = { version = "1", default-features = false }
+futures-core = { version = "0.3", default-features = false }
+futures-util = { version = "0.3", default-features = false }
+gtk = { version = "0.18", default-features = false }
 itertools = { version = "0.14", default-features = false }
 libappindicator = { version = "0.9", default-features = false }
-gtk = { version = "0.18", default-features = false }
 panic-halt = { version = "0.2", default-features = false }
 rusb = { version = "0.9", default-features = false }
 strum = { version = "0.27", default-features = false, features = ["derive"] }

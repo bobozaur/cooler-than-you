@@ -1,5 +1,5 @@
 [workspace]
-members = ["shared", "device", "tray", "rusb_async"]
+members = ["shared", "device", "tray"]
 resolver = "3"
 
 [workspace.package]
@@ -10,7 +10,6 @@ license = "MIT OR Apache-2.0"
 [workspace.dependencies]
 # Internal
 shared = { path = "shared" }
-rusb_async = { path = "rusb_async" }
 
 # External
 anyhow = { version = "1", default-features = false, features = ["std"] }
@@ -26,7 +25,8 @@ gtk = { version = "0.18", default-features = false }
 itertools = { version = "0.14", default-features = false }
 libappindicator = { version = "0.9", default-features = false }
 panic-halt = { version = "0.2", default-features = false }
-rusb = { version = "0.9", default-features = false }
+rusb = { git = "https://github.com/bobozaur/rusb", branch = "async-futures", default-features = false }
+rusb-async = { git = "https://github.com/bobozaur/rusb", branch = "async-futures", default-features = false }
 strum = { version = "0.27", default-features = false, features = ["derive"] }
 systemstat = { version = "0.2", default-features = false }
 thiserror = { version = "2", default-features = false }

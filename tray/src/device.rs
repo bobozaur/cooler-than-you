@@ -1,5 +1,4 @@
 use std::{
-    rc::Rc,
     sync::Arc,
     task::{Poll, ready},
 };
@@ -9,20 +8,19 @@ use futures_core::Stream;
 use futures_util::FutureExt;
 use itertools::Itertools;
 use rusb::{
-    Context, Device as RusbDevice, DeviceHandle, Direction, LogCallbackMode, LogLevel,
-    TransferType, UsbContext,
+    Device as RusbDevice, DeviceHandle, Direction, LogCallbackMode, LogLevel, TransferType,
+    UsbContext,
 };
-use rusb_async::{fd::FdHandler, transfer::InterruptTransfer};
+use rusb_async::{AsyncContext, FdCallbacksEventHandler, InterruptTransfer};
 use shared::{DeviceCommand, DeviceState, USB_MANUFACTURER, USB_PID, USB_PRODUCT, USB_VID};
 
-use crate::{AnyResult, fd_handler::GlibFdHandlerContext};
+use crate::{AnyResult, fd_callbacks::GlibFdCallbacks};
 
 #[derive(Clone, Debug)]
 pub struct Device {
     /// Using an [`Arc`] because that's what the async libusb transfers
     /// required on construction.
-    handle: Arc<DeviceHandle<Context>>,
-    fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
+    handle: Arc<DeviceHandle<AsyncContext>>,
     interface_number: u8,
     in_endpoint_address: u8,
     out_endpoint_address: u8,
@@ -32,13 +30,13 @@ impl Device {
     ///
     /// # Errors
     pub fn new() -> AnyResult<Self> {
-        let mut context = Context::new().context("unable to initialize libusb")?;
+        let event_handler = FdCallbacksEventHandler::new(GlibFdCallbacks::default());
+        let mut context =
+            AsyncContext::new(event_handler).context("unable to initialize libusb")?;
 
         let log_fn = Box::new(|_, message| eprintln!("{message}"));
         context.set_log_level(LogLevel::Warning);
         context.set_log_callback(log_fn, LogCallbackMode::Global);
-
-        let fd_handler = Rc::new(FdHandler::new(GlibFdHandlerContext::new(context.clone())));
 
         let handle = context
             .devices()?
@@ -106,7 +104,6 @@ impl Device {
 
         let cooler = Self {
             handle,
-            fd_handler,
             interface_number,
             in_endpoint_address,
             out_endpoint_address,
@@ -117,16 +114,11 @@ impl Device {
 
     /// # Errors
     pub fn state_stream(&self) -> AnyResult<DeviceStateStream> {
-        let transfer = InterruptTransfer::new(
-            self.handle.clone(),
-            self.in_endpoint_address,
-            vec![0; 1],
-            &self.fd_handler,
-        )?;
+        let transfer =
+            InterruptTransfer::new(self.handle.clone(), self.in_endpoint_address, vec![0; 1])?;
 
         Ok(DeviceStateStream {
             transfer,
-            fd_handler: self.fd_handler.clone(),
             in_endpoint_address: self.in_endpoint_address,
         })
     }
@@ -138,7 +130,6 @@ impl Device {
             self.handle.clone(),
             self.out_endpoint_address,
             vec![command.into(); 1],
-            &self.fd_handler,
         )?
         .await?;
 
@@ -146,7 +137,7 @@ impl Device {
     }
 
     #[expect(clippy::needless_pass_by_value, reason = "used in a `filter_map`")]
-    fn device_filter(device: RusbDevice<Context>) -> Option<DeviceHandle<Context>> {
+    fn device_filter(device: RusbDevice<AsyncContext>) -> Option<DeviceHandle<AsyncContext>> {
         let desc = device.device_descriptor().ok()?;
 
         if desc.vendor_id() != USB_VID || desc.product_id() != USB_PID {
@@ -175,8 +166,7 @@ impl Drop for Device {
 
 #[derive(Debug)]
 pub struct DeviceStateStream {
-    transfer: InterruptTransfer<Context>,
-    fd_handler: Rc<FdHandler<Context, GlibFdHandlerContext>>,
+    transfer: InterruptTransfer<AsyncContext>,
     in_endpoint_address: u8,
 }
 
@@ -193,9 +183,8 @@ impl Stream for DeviceStateStream {
             .map_err(|e| anyhow!("{e}"))?
             .try_into()?;
 
-        let fd_handler = self.fd_handler.clone();
         let endpoint = self.in_endpoint_address;
-        self.transfer.reuse(endpoint, vec![0; 1], &fd_handler)?;
+        self.transfer.renew(endpoint, vec![0; 1])?;
 
         Poll::Ready(Some(Ok(state)))
     }

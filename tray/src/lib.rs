@@ -1,5 +1,5 @@
 mod device;
-mod fd_handler;
+mod fd_callbacks;
 mod indicator;
 mod menu;
 

@@ -14,7 +14,7 @@ use std::{
 pub use bulk::BulkTransfer;
 pub use control::{ControlTransfer, RawControlTransfer};
 pub use interrupt::InterruptTransfer;
-pub use isochronous::IsochronousTransfer;
+pub use isochronous::{IsoBufIter, IsochronousBuffer, IsochronousTransfer};
 use rusb::{
     DeviceHandle, UsbContext,
     constants::LIBUSB_ERROR_BUSY,
@@ -68,7 +68,7 @@ where
             ptr,
             buffer,
             kind,
-            state: TransferState::MustSubmit,
+            state: TransferState::Allocated,
         })
     }
 
@@ -109,25 +109,6 @@ where
         };
     }
 
-    /// Prerequisite: self.buffer ans self.ptr are both correctly set
-    fn take_buffer(&mut self) -> Vec<u8> {
-        debug_assert!(self.transfer().length >= self.transfer().actual_length);
-        unsafe {
-            let len = self.transfer().actual_length.try_into().unwrap();
-            self.buffer.set_len(len);
-        }
-
-        let data = std::mem::take(&mut self.buffer);
-
-        // Update transfer struct for new buffer
-        let transfer_struct = unsafe { self.ptr.as_mut() };
-        transfer_struct.actual_length = 0; // TODO: Is this necessary?
-        transfer_struct.buffer = self.buffer.as_mut_ptr();
-        transfer_struct.length = self.buffer.capacity().try_into().unwrap();
-
-        data
-    }
-
     fn transfer(&self) -> &ffi::libusb_transfer {
         // Safety: transfer remains valid as long as self
         unsafe { self.ptr.as_ref() }
@@ -136,10 +117,16 @@ where
     fn cancel(&mut self) {
         unsafe { ffi::libusb_cancel_transfer(self.ptr.as_ptr()) };
     }
+}
 
-    fn handle_completed(&mut self) -> Result<Vec<u8>> {
+impl<C, K> Transfer<C, K>
+where
+    C: UsbContext,
+    Self: CompleteTransfer,
+{
+    fn complete(&mut self) -> Result<<Self as CompleteTransfer>::Output> {
         let err = match self.transfer().status {
-            LIBUSB_TRANSFER_COMPLETED => return Ok(self.take_buffer()),
+            LIBUSB_TRANSFER_COMPLETED => return self.swap_buffer(Vec::new()),
             LIBUSB_TRANSFER_CANCELLED => Error::Cancelled,
             LIBUSB_TRANSFER_ERROR => Error::Other("Error occurred during transfer execution"),
             LIBUSB_TRANSFER_TIMED_OUT => {
@@ -152,31 +139,57 @@ where
         };
         Err(err)
     }
+
+    /// Prerequisite: self.buffer ans self.ptr are both correctly set
+    fn swap_buffer(&mut self, mut buffer: Vec<u8>) -> Result<<Self as CompleteTransfer>::Output> {
+        debug_assert!(self.transfer().length >= self.transfer().actual_length);
+
+        // Update transfer struct for new buffer
+        let transfer_struct = unsafe { self.ptr.as_mut() };
+        transfer_struct.actual_length = 0; // TODO: Is this necessary?
+        transfer_struct.length = buffer.capacity().try_into().unwrap();
+        transfer_struct.buffer = buffer.as_mut_ptr();
+
+        let data = std::mem::replace(&mut self.buffer, buffer);
+        self.consume_buffer(data)
+    }
 }
 
+// Transfer kinds are not complex types that should require pin projections.
+// It's thus much simpler to require that they implement [`Unpin`].
 impl<C, K> Future for Transfer<C, K>
 where
     C: UsbContext,
-    Self: FillTransfer,
+    K: Unpin,
+    Self: CompleteTransfer,
 {
-    type Output = Result<Vec<u8>>;
+    type Output = Result<<Self as CompleteTransfer>::Output>;
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Self::Output> {
-        match self.state {
-            TransferState::MustSubmit => {
-                self.fill(cx.waker().clone())?;
-                self.submit()?;
-                self.state = TransferState::MustPoll;
-                Poll::Pending
-            }
-            TransferState::MustPoll => {
-                self.state = TransferState::Completed;
-                Poll::Ready(self.handle_completed())
-            }
-            TransferState::Completed => Poll::Pending,
+        loop {
+            break match self.state {
+                TransferState::Allocated => {
+                    self.fill(cx.waker().clone())?;
+                    self.state = TransferState::Filled;
+                    continue;
+                }
+                TransferState::Filled => {
+                    self.submit()?;
+                    self.state = TransferState::Submitted;
+                    Poll::Pending
+                }
+                TransferState::Submitted => {
+                    self.state = TransferState::Completed;
+                    Poll::Ready(self.complete())
+                }
+                // NOTE: Maybe return an error here instead?
+                //       Might make sense since a transfer
+                //       could be refilled and polled again.
+                TransferState::Completed => Poll::Pending,
+            };
         }
     }
 }
@@ -188,22 +201,51 @@ where
 {
     fn drop(&mut self) {
         match self.state {
-            TransferState::MustPoll => self.cancel(),
-            TransferState::MustSubmit | TransferState::Completed => unsafe {
+            TransferState::Submitted => self.cancel(),
+            TransferState::Allocated | TransferState::Filled | TransferState::Completed => unsafe {
                 ffi::libusb_free_transfer(self.ptr.as_ptr());
             },
         }
     }
 }
 
-#[derive(Debug)]
-enum TransferState {
-    MustSubmit,
-    MustPoll,
-    Completed,
+/// Step 2 of the async API.
+pub trait FillTransfer {
+    /// # Errors
+    fn fill(&mut self, waker: Waker) -> Result<()>;
 }
 
-/// Step 2 of the async API.
-trait FillTransfer: Sized + Unpin {
-    fn fill(&mut self, waker: Waker) -> Result<()>;
+pub trait CompleteTransfer: FillTransfer {
+    type Output;
+
+    /// # Errors
+    fn consume_buffer(&mut self, buffer: Vec<u8>) -> Result<Self::Output>;
+}
+
+/// Marker trait for common implementation of [`CompleteTransfer`] for
+/// non-isochronous endpoints.
+trait SingleBufferTransfer {}
+
+/// Implementation for essentially all non-isochronous transfers.
+impl<C, K> CompleteTransfer for Transfer<C, K>
+where
+    C: UsbContext,
+    K: SingleBufferTransfer + Unpin,
+    Self: FillTransfer,
+{
+    type Output = Vec<u8>;
+
+    fn consume_buffer(&mut self, mut buffer: Vec<u8>) -> Result<Self::Output> {
+        let len = self.transfer().actual_length.try_into().unwrap();
+        unsafe { buffer.set_len(len) };
+        Ok(buffer)
+    }
+}
+
+#[derive(Debug)]
+enum TransferState {
+    Allocated,
+    Filled,
+    Submitted,
+    Completed,
 }

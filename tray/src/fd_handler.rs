@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::BTreeMap, ffi::c_short, os::fd::RawFd, tim
 
 use gtk::glib::{self, ControlFlow, IOCondition, SourceId};
 use rusb::{Context, UsbContext};
-use rusb_async::FdMonitor;
+use rusb_async::fd::FdMonitor;
 
 #[derive(Debug)]
 pub struct GlibFdHandlerContext {

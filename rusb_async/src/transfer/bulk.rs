@@ -7,8 +7,9 @@ use rusb::{
 };
 
 use crate::{
-    Error, FdHandler, FdMonitor, Result,
-    transfer::{FillTransfer, Transfer},
+    error::{Error, Result},
+    fd::{FdHandler, FdMonitor},
+    transfer::{FillTransfer, SingleBufferTransfer, Transfer},
 };
 
 pub type BulkTransfer<C> = Transfer<C, Bulk>;
@@ -21,6 +22,7 @@ impl<C> BulkTransfer<C>
 where
     C: UsbContext,
 {
+    /// # Errors
     pub fn new<M>(
         dev_handle: Arc<DeviceHandle<C>>,
         endpoint: u8,
@@ -69,3 +71,5 @@ where
         Ok(())
     }
 }
+
+impl SingleBufferTransfer for Bulk {}

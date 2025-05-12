@@ -3,8 +3,9 @@ use std::{sync::Arc, task::Waker};
 use rusb::{DeviceHandle, UsbContext, constants::LIBUSB_CONTROL_SETUP_SIZE, ffi};
 
 use crate::{
-    Error, FdHandler, FdMonitor, Result,
-    transfer::{FillTransfer, Transfer},
+    error::{Error, Result},
+    fd::{FdHandler, FdMonitor},
+    transfer::{FillTransfer, SingleBufferTransfer, Transfer},
 };
 
 pub type ControlTransfer<C> = Transfer<C, Control>;
@@ -84,6 +85,8 @@ where
     }
 }
 
+impl SingleBufferTransfer for Control {}
+
 #[allow(missing_copy_implementations)]
 #[derive(Debug)]
 pub struct RawControl(());
@@ -126,3 +129,5 @@ where
         Ok(())
     }
 }
+
+impl SingleBufferTransfer for RawControl {}

@@ -1,14 +1,15 @@
-use std::{sync::Arc, task::Waker};
+use std::{ffi::c_int, slice, sync::Arc, task::Waker};
 
 use rusb::{
     DeviceHandle, UsbContext,
-    constants::{LIBUSB_ENDPOINT_DIR_MASK, LIBUSB_ENDPOINT_OUT},
-    ffi,
+    constants::{LIBUSB_ENDPOINT_DIR_MASK, LIBUSB_ENDPOINT_OUT, LIBUSB_TRANSFER_COMPLETED},
+    ffi::{self, libusb_iso_packet_descriptor},
 };
 
 use crate::{
-    Error, FdHandler, FdMonitor, Result,
-    transfer::{FillTransfer, Transfer},
+    error::{Error, Result},
+    fd::{FdHandler, FdMonitor},
+    transfer::{CompleteTransfer, FillTransfer, Transfer},
 };
 
 pub type IsochronousTransfer<C> = Transfer<C, Isochronous>;
@@ -23,6 +24,7 @@ impl<C> IsochronousTransfer<C>
 where
     C: UsbContext,
 {
+    /// # Errors
     pub fn new<M>(
         dev_handle: Arc<DeviceHandle<C>>,
         endpoint: u8,
@@ -40,6 +42,15 @@ where
             Isochronous { iso_packets },
             iso_packets,
         )
+    }
+
+    fn packet_descriptors(&self) -> &[libusb_iso_packet_descriptor] {
+        unsafe {
+            slice::from_raw_parts(
+                self.transfer().iso_packet_desc.as_ptr(),
+                self.transfer().num_iso_packets.try_into().unwrap(),
+            )
+        }
     }
 }
 
@@ -83,5 +94,108 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl<C> CompleteTransfer for IsochronousTransfer<C>
+where
+    C: UsbContext,
+{
+    type Output = IsochronousBuffer;
+
+    fn consume_buffer(&mut self, mut buffer: Vec<u8>) -> Result<Self::Output> {
+        debug_assert!(self.transfer().length >= self.transfer().actual_length);
+        let len = self.transfer().length.try_into().unwrap();
+        unsafe { buffer.set_len(len) };
+
+        let packet_descriptors = self
+            .packet_descriptors()
+            .iter()
+            .map(TryFrom::try_from)
+            .collect::<Result<_>>()?;
+
+        Ok(IsochronousBuffer {
+            packet_descriptors,
+            buffer,
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+struct IsochronousPacketDescriptor {
+    length: usize,
+    actual_length: usize,
+    status: c_int,
+}
+
+impl TryFrom<&libusb_iso_packet_descriptor> for IsochronousPacketDescriptor {
+    type Error = Error;
+
+    fn try_from(value: &libusb_iso_packet_descriptor) -> std::result::Result<Self, Self::Error> {
+        let length = value
+            .length
+            .try_into()
+            .map_err(|_| Error::Other("Invalid isochronous packet length"))?;
+        let actual_length = value
+            .length
+            .try_into()
+            .map_err(|_| Error::Other("Invalid isochronous packet actual length"))?;
+
+        Ok(Self {
+            length,
+            actual_length,
+            status: value.status,
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct IsochronousBuffer {
+    packet_descriptors: Vec<IsochronousPacketDescriptor>,
+    buffer: Vec<u8>,
+}
+
+impl IsochronousBuffer {
+    #[must_use]
+    pub fn iter(&self) -> IsoBufIter<'_> {
+        self.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a IsochronousBuffer {
+    type Item = &'a [u8];
+
+    type IntoIter = IsoBufIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IsoBufIter {
+            packet_descriptors_iter: self.packet_descriptors.iter(),
+            buffer: &self.buffer,
+            offset: 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct IsoBufIter<'a> {
+    packet_descriptors_iter: slice::Iter<'a, IsochronousPacketDescriptor>,
+    buffer: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> Iterator for IsoBufIter<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let packet_desc = self.packet_descriptors_iter.next()?;
+            let packet_start = self.offset;
+            self.offset += packet_desc.length;
+
+            if packet_desc.status == LIBUSB_TRANSFER_COMPLETED {
+                let packet_end = packet_start + packet_desc.actual_length;
+                return Some(&self.buffer[packet_start..packet_end]);
+            }
+        }
     }
 }

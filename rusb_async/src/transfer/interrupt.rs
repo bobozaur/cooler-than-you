@@ -7,8 +7,9 @@ use rusb::{
 };
 
 use crate::{
-    Error, FdHandler, FdMonitor, Result,
-    transfer::{FillTransfer, Transfer},
+    error::{Error, Result},
+    fd::{FdHandler, FdMonitor},
+    transfer::{FillTransfer, SingleBufferTransfer, Transfer},
 };
 
 pub type InterruptTransfer<C> = Transfer<C, Interrupt>;
@@ -32,6 +33,15 @@ where
         M: FdMonitor<C>,
     {
         Transfer::alloc(dev_handle, endpoint, buffer, Interrupt(()), 0)
+    }
+
+    /// # Errors
+    pub fn refresh<M>(&mut self, buffer: Vec<u8>, _fd_handler: &FdHandler<C, M>) -> Result<()>
+    where
+        M: FdMonitor<C>,
+    {
+        self.swap_buffer(buffer)?;
+        Ok(())
     }
 }
 
@@ -70,3 +80,5 @@ where
         Ok(())
     }
 }
+
+impl SingleBufferTransfer for Interrupt {}

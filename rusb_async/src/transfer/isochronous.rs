@@ -9,7 +9,7 @@ use rusb::{
 use crate::{
     error::{Error, Result},
     fd::{FdHandler, FdMonitor},
-    transfer::{CompleteTransfer, FillTransfer, Transfer},
+    transfer::{CompleteTransfer, FillTransfer, Transfer, TransferState},
 };
 
 pub type IsochronousTransfer<C> = Transfer<C, Isochronous>;
@@ -42,6 +42,22 @@ where
             Isochronous { iso_packets },
             iso_packets,
         )
+    }
+
+    /// # Errors
+    pub fn reuse<M>(
+        &mut self,
+        endpoint: u8,
+        buffer: Vec<u8>,
+        _fd_handler: &FdHandler<C, M>,
+    ) -> Result<()>
+    where
+        M: FdMonitor<C>,
+    {
+        self.endpoint = endpoint;
+        self.swap_buffer(buffer)?;
+        self.state = TransferState::Allocated;
+        Ok(())
     }
 
     fn packet_descriptors(&self) -> &[libusb_iso_packet_descriptor] {

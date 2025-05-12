@@ -5,7 +5,7 @@ use rusb::{DeviceHandle, UsbContext, constants::LIBUSB_CONTROL_SETUP_SIZE, ffi};
 use crate::{
     error::{Error, Result},
     fd::{FdHandler, FdMonitor},
-    transfer::{FillTransfer, SingleBufferTransfer, Transfer},
+    transfer::{FillTransfer, SingleBufferTransfer, Transfer, TransferState},
 };
 
 pub type ControlTransfer<C> = Transfer<C, Control>;
@@ -46,6 +46,33 @@ where
         };
 
         Transfer::alloc(dev_handle, 0, buffer, kind, 0)
+    }
+
+    /// # Errors
+    pub fn reuse<M>(
+        &mut self,
+        request_type: u8,
+        request: u8,
+        value: u16,
+        index: u16,
+        data: &[u8],
+        _fd_handler: &FdHandler<C, M>,
+    ) -> Result<()>
+    where
+        M: FdMonitor<C>,
+    {
+        let buffer = Vec::with_capacity(data.len() + LIBUSB_CONTROL_SETUP_SIZE);
+        let kind = Control {
+            request_type,
+            request,
+            value,
+            index,
+        };
+
+        self.swap_buffer(buffer)?;
+        self.kind = kind;
+        self.state = TransferState::Allocated;
+        Ok(())
     }
 }
 
@@ -105,6 +132,16 @@ where
         M: FdMonitor<C>,
     {
         Transfer::alloc(dev_handle, 0, buffer, RawControl(()), 0)
+    }
+
+    /// # Errors
+    pub fn reuse<M>(&mut self, buffer: Vec<u8>, _fd_handler: &FdHandler<C, M>) -> Result<()>
+    where
+        M: FdMonitor<C>,
+    {
+        self.swap_buffer(buffer)?;
+        self.state = TransferState::Allocated;
+        Ok(())
     }
 }
 

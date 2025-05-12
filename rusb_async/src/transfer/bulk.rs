@@ -9,7 +9,7 @@ use rusb::{
 use crate::{
     error::{Error, Result},
     fd::{FdHandler, FdMonitor},
-    transfer::{FillTransfer, SingleBufferTransfer, Transfer},
+    transfer::{FillTransfer, SingleBufferTransfer, Transfer, TransferState},
 };
 
 pub type BulkTransfer<C> = Transfer<C, Bulk>;
@@ -33,6 +33,22 @@ where
         M: FdMonitor<C>,
     {
         Transfer::alloc(dev_handle, endpoint, buffer, Bulk(()), 0)
+    }
+
+    /// # Errors
+    pub fn reuse<M>(
+        &mut self,
+        endpoint: u8,
+        buffer: Vec<u8>,
+        _fd_handler: &FdHandler<C, M>,
+    ) -> Result<()>
+    where
+        M: FdMonitor<C>,
+    {
+        self.endpoint = endpoint;
+        self.swap_buffer(buffer)?;
+        self.state = TransferState::Allocated;
+        Ok(())
     }
 }
 

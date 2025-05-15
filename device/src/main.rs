@@ -9,7 +9,7 @@ mod shared_state;
 mod timed_monitor;
 mod usb;
 
-use arduino_hal::{delay_ms, Pins};
+use arduino_hal::{Pins, delay_ms};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
 use command::Command;
@@ -22,9 +22,32 @@ use usb::setup_usb;
 #[arduino_hal::entry]
 fn main() -> ! {
     let peripherals = arduino_hal::Peripherals::take().unwrap();
+    // Disable the analog comparator
+    peripherals.AC.acsr.write(|w| w.acd().set_bit());
+    // Disable ADC
+    peripherals.ADC.adcsra.write(|w| w.aden().clear_bit());
+    peripherals.CPU.prr0.write(|w| w.pradc().set_bit());
+    // Disable the on-chip debug system
+    peripherals.CPU.mcucr.write(|w| w.jtd().set_bit());
+    // Disable TWI
+    peripherals.TWI.twcr.write(|w| w.twen().clear_bit());
+    peripherals.CPU.prr0.write(|w| w.prtwi().set_bit());
+    // Disable SPI
+    peripherals.SPI.spcr.write(|w| w.spe().clear_bit());
+    peripherals.CPU.prr0.write(|w| w.prspi().set_bit());
+    // Disable USART
+    peripherals.USART1.ucsr1b.write(|w| w.rxen1().clear_bit());
+    peripherals.USART1.ucsr1b.write(|w| w.txen1().clear_bit());
+    peripherals.CPU.prr1.write(|w| w.prusart1().set_bit());
+    // Disable power to unused timers
+    peripherals.CPU.prr0.write(|w| w.prtim1().set_bit());
+    peripherals.CPU.prr1.write(|w| w.prtim3().set_bit());
+    peripherals.CPU.prr1.write(|w| w.prtim4().set_bit());
+
     let pll = peripherals.PLL;
     let timer = peripherals.TC0;
     let usb = peripherals.USB_DEVICE;
+
     let Pins {
         d5: backlight_mon_pin,
         d6: speed_down_mon_pin,
@@ -91,8 +114,12 @@ fn main() -> ! {
         match command {
             Some(Command::Device(DeviceCommand::SpeedUp)) => speed_up_btn.short_press(),
             Some(Command::Device(DeviceCommand::SpeedDown)) => speed_down_btn.short_press(),
-            Some(Command::Device(DeviceCommand::PowerOn | DeviceCommand::PowerOff)) => power_btn.short_press(),
-            Some(Command::Device(DeviceCommand::LedsOn | DeviceCommand::LedsOff)) => led_btn.long_press(),
+            Some(Command::Device(DeviceCommand::PowerOn | DeviceCommand::PowerOff)) => {
+                power_btn.short_press()
+            }
+            Some(Command::Device(DeviceCommand::LedsOn | DeviceCommand::LedsOff)) => {
+                led_btn.long_press()
+            }
             Some(Command::Device(DeviceCommand::LedsColorChange)) => led_btn.short_press(),
             Some(Command::Delay275Ms) => delay_ms(275),
             None => sleep(),

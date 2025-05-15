@@ -129,9 +129,9 @@ checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
 
 [[package]]
 name = "bitflags"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "byteorder"
@@ -672,7 +672,7 @@ dependencies = [
 [[package]]
 name = "libusb1-sys"
 version = "0.7.0"
-source = "git+https://github.com/bobozaur/rusb?branch=async-futures#d37b3aea42604e8cd13c8fdb635a61a8145ce40f"
+source = "git+https://github.com/bobozaur/rusb?branch=async-futures#357655c12a0e37c1db564df0325adbe84777ee04"
 dependencies = [
  "cc",
  "libc",
@@ -876,7 +876,7 @@ dependencies = [
 [[package]]
 name = "rusb"
 version = "0.9.4"
-source = "git+https://github.com/bobozaur/rusb?branch=async-futures#d37b3aea42604e8cd13c8fdb635a61a8145ce40f"
+source = "git+https://github.com/bobozaur/rusb?branch=async-futures#357655c12a0e37c1db564df0325adbe84777ee04"
 dependencies = [
  "libc",
  "libusb1-sys",
@@ -885,7 +885,7 @@ dependencies = [
 [[package]]
 name = "rusb-async"
 version = "0.0.1"
-source = "git+https://github.com/bobozaur/rusb?branch=async-futures#d37b3aea42604e8cd13c8fdb635a61a8145ce40f"
+source = "git+https://github.com/bobozaur/rusb?branch=async-futures#357655c12a0e37c1db564df0325adbe84777ee04"
 dependencies = [
  "libc",
  "rusb",

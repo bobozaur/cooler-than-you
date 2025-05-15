@@ -21,7 +21,6 @@ where
         let condition = match events {
             FdEvents::Read => IOCondition::IN,
             FdEvents::Write => IOCondition::OUT,
-            FdEvents::ReadWrite => IOCondition::IN.union(IOCondition::OUT),
             FdEvents::Other => return,
         };
 

@@ -1,5 +1,5 @@
 //! TODO:
-//! - disable device unused hardware
+//! - disable WDT and BOD fuses
 //! - check error handling
 //! - logging
 //! - debian packaging

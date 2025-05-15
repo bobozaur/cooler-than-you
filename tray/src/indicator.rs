@@ -90,6 +90,6 @@ struct InnerIndicator(AppIndicator);
 
 impl Debug for InnerIndicator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "InnerIndicator")
+        f.debug_struct("InnerIndicator").finish()
     }
 }

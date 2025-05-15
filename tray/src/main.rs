@@ -13,9 +13,16 @@ use futures_util::StreamExt;
 use gtk::{SeparatorMenuItem, glib};
 use shared::{DeviceCommand, FanSpeed};
 use systemstat::{Platform, System};
+use tracing_log::LogTracer;
+use tracing_subscriber::{EnvFilter, fmt};
 use tray::{AnyResult, Indicator, QuitItem, SpeedLabelItem};
 
 fn main() -> AnyResult<()> {
+    fmt::Subscriber::builder()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+    LogTracer::init()?;
+
     let mut indicator = Indicator::new()?;
     let device = indicator.device().clone();
     let menu_items = indicator.menu_items().clone();

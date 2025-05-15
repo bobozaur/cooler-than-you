@@ -7,6 +7,7 @@ use gtk::{
 };
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use shared::DeviceCommand;
+use tracing::instrument;
 
 use crate::{
     AnyResult, Device,
@@ -24,6 +25,7 @@ pub struct Indicator {
 impl Indicator {
     ///
     /// # Errors
+    #[instrument(err(Debug))]
     pub fn new() -> AnyResult<Self> {
         let device = Device::new()?;
 

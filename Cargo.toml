@@ -22,7 +22,6 @@ circular-buffer = { version = "1", default-features = false }
 futures-core = { version = "0.3", default-features = false }
 futures-util = { version = "0.3", default-features = false }
 gtk = { version = "0.18", default-features = false }
-itertools = { version = "0.14", default-features = false }
 libappindicator = { version = "0.9", default-features = false }
 panic-halt = { version = "0.2", default-features = false }
 rusb = { git = "https://github.com/bobozaur/rusb", branch = "async-futures", default-features = false }
@@ -30,6 +29,22 @@ rusb-async = { git = "https://github.com/bobozaur/rusb", branch = "async-futures
 strum = { version = "0.27", default-features = false, features = ["derive"] }
 systemstat = { version = "0.2", default-features = false }
 thiserror = { version = "2", default-features = false }
+tracing = { version = "0.1", default-features = false, features = [
+    "attributes",
+    "std",
+] }
+tracing-log = { version = "0.2", default-features = false, features = [
+    "log-tracer",
+    "std",
+] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "ansi",
+    "env-filter",
+    "fmt",
+    "smallvec",
+    "std",
+    "tracing-log",
+] }
 usbd-hid = { version = "0.8", default-features = false }
 usb-device = { version = "0.3", default-features = false }
 

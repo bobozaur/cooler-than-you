@@ -2,6 +2,7 @@ mod device;
 mod fd_callbacks;
 mod indicator;
 mod menu;
+mod exactly_one;
 
 pub use anyhow::Result as AnyResult;
 pub use device::Device;

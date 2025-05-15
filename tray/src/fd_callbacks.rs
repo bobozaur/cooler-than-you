@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, os::fd::RawFd, sync::Mutex, time::Duration};
 
 use gtk::glib::{self, ControlFlow, IOCondition, SourceId};
 use rusb_async::{AsyncUsbContext, FdCallbacks, FdEvents};
+use tracing::instrument;
 
 #[derive(Debug, Default)]
 pub struct GlibFdCallbacks {
@@ -12,6 +13,7 @@ impl<C> FdCallbacks<C> for GlibFdCallbacks
 where
     C: AsyncUsbContext,
 {
+    #[instrument(skip(self, context))]
     fn fd_added(&self, context: C, fd: RawFd, events: FdEvents) {
         let handle_events_fn = move |_, _| {
             context.handle_events(Some(Duration::ZERO)).unwrap();
@@ -28,6 +30,7 @@ where
         self.fd_sources_map.lock().unwrap().insert(fd, source_id);
     }
 
+    #[instrument(skip(self))]
     fn fd_removed(&self, fd: RawFd) {
         if let Some(source_id) = self.fd_sources_map.lock().unwrap().remove(&fd) {
             source_id.remove();

@@ -19,7 +19,7 @@ use tracing::instrument;
 
 use crate::menu::MenuItems;
 
-#[instrument(err(Debug))]
+#[instrument(skip_all, err(Debug))]
 pub async fn process_device_state(
     device: Device,
     menu_items: Rc<MenuItems>,
@@ -55,7 +55,7 @@ pub async fn process_device_state(
     }
 }
 
-#[instrument(err(Debug))]
+#[instrument(skip_all, err(Debug))]
 pub async fn speed_auto_task(
     device: Device,
     menu_items: Rc<MenuItems>,

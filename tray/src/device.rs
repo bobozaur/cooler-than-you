@@ -136,6 +136,8 @@ impl Device {
     /// or if the transfer could not be completed.
     #[instrument(skip(self), err(Debug))]
     pub async fn send_command(&self, command: DeviceCommand) -> AnyResult<()> {
+        tracing::info!("sending command");
+
         InterruptTransfer::new(
             self.0.handle.clone(),
             self.0.out_endpoint_address,
@@ -196,6 +198,7 @@ impl Stream for DeviceStateStream {
             .exactly_one()?
             .try_into()?;
 
+        tracing::info!("received state");
         let endpoint = self.in_endpoint_address;
         self.transfer.renew(endpoint, vec![0; 1])?;
 

@@ -1,5 +1,4 @@
 //! TODO:
-//! - disable WDT and BOD fuses
 //! - check error handling
 //! - logging
 //! - debian packaging
@@ -11,7 +10,6 @@ use std::{cell::Cell, rc::Rc};
 use anyhow::Context;
 use gtk::{SeparatorMenuItem, glib};
 use shared::FanSpeed;
-use tracing_log::LogTracer;
 use tracing_subscriber::{EnvFilter, fmt};
 use tray::{AnyResult, Indicator, QuitItem, SpeedLabelItem, process_device_state, speed_auto_task};
 
@@ -19,7 +17,6 @@ fn main() -> AnyResult<()> {
     fmt::Subscriber::builder()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
-    LogTracer::init()?;
 
     let mut indicator = Indicator::new()?;
     let device = indicator.device().clone();

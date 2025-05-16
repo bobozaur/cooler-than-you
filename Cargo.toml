@@ -33,10 +33,6 @@ tracing = { version = "0.1", default-features = false, features = [
     "attributes",
     "std",
 ] }
-tracing-log = { version = "0.2", default-features = false, features = [
-    "log-tracer",
-    "std",
-] }
 tracing-subscriber = { version = "0.3", default-features = false, features = [
     "ansi",
     "env-filter",

@@ -23,10 +23,10 @@ where
         let condition = match events {
             FdEvents::Read => IOCondition::IN,
             FdEvents::Write => IOCondition::OUT,
-            FdEvents::Other => return,
+            FdEvents::ReadWrite => IOCondition::IN.union(IOCondition::OUT),
         };
 
-        let source_id = glib::source::unix_fd_add_local(fd, condition, handle_events_fn);
+        let source_id = glib::source::unix_fd_add(fd, condition, handle_events_fn);
         self.fd_sources_map.lock().unwrap().insert(fd, source_id);
     }
 

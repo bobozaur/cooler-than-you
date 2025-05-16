@@ -17,13 +17,7 @@ use tracing::instrument;
 use crate::{AnyResult, exactly_one::ExactlyOneIter, fd_callbacks::GlibFdCallbacks};
 
 #[derive(Clone, Debug)]
-pub struct Device {
-    /// Using an [`Arc`] because that's what the async libusb transfers require.
-    handle: Arc<DeviceHandle<AsyncContext>>,
-    interface_number: u8,
-    in_endpoint_address: u8,
-    out_endpoint_address: u8,
-}
+pub struct Device(Arc<DeviceInner>);
 
 impl Device {
     /// Creates a device instance which can be used for reading and writing.
@@ -105,14 +99,14 @@ impl Device {
             .set_alternate_setting(interface_number, setting_number)
             .context("failed to choose alternate setting")?;
 
-        let device = Self {
+        let inner = DeviceInner {
             handle,
             interface_number,
             in_endpoint_address,
             out_endpoint_address,
         };
 
-        Ok(device)
+        Ok(Self(Arc::new(inner)))
     }
 
     /// Creates a [`DeviceStateStream`].
@@ -122,12 +116,15 @@ impl Device {
     /// Returns an error if [`InterruptTransfer::new`] fails.
     #[instrument(skip(self), err(Debug))]
     pub fn state_stream(&self) -> AnyResult<DeviceStateStream> {
-        let transfer =
-            InterruptTransfer::new(self.handle.clone(), self.in_endpoint_address, vec![0; 1])?;
+        let transfer = InterruptTransfer::new(
+            self.0.handle.clone(),
+            self.0.in_endpoint_address,
+            vec![0; 1],
+        )?;
 
         Ok(DeviceStateStream {
             transfer,
-            in_endpoint_address: self.in_endpoint_address,
+            in_endpoint_address: self.0.in_endpoint_address,
         })
     }
 
@@ -140,8 +137,8 @@ impl Device {
     #[instrument(skip(self), err(Debug))]
     pub async fn send_command(&self, command: DeviceCommand) -> AnyResult<()> {
         InterruptTransfer::new(
-            self.handle.clone(),
-            self.out_endpoint_address,
+            self.0.handle.clone(),
+            self.0.out_endpoint_address,
             vec![command.into(); 1],
         )?
         .await?;
@@ -180,16 +177,6 @@ impl Device {
     }
 }
 
-impl Drop for Device {
-    fn drop(&mut self) {
-        if let Ok(false) = self.handle.kernel_driver_active(self.interface_number) {
-            if let Err(e) = self.handle.attach_kernel_driver(self.interface_number) {
-                tracing::error!("error re-attaching kernel driver: {e}");
-            }
-        }
-    }
-}
-
 /// A never ending [`Stream`] that reads and returns the [`DeviceState`].
 #[derive(Debug)]
 pub struct DeviceStateStream {
@@ -213,5 +200,24 @@ impl Stream for DeviceStateStream {
         self.transfer.renew(endpoint, vec![0; 1])?;
 
         Poll::Ready(Some(Ok(state)))
+    }
+}
+
+#[derive(Clone, Debug)]
+struct DeviceInner {
+    /// Using an [`Arc`] because that's what the async libusb transfers require.
+    handle: Arc<DeviceHandle<AsyncContext>>,
+    interface_number: u8,
+    in_endpoint_address: u8,
+    out_endpoint_address: u8,
+}
+
+impl Drop for DeviceInner {
+    fn drop(&mut self) {
+        if let Ok(false) = self.handle.kernel_driver_active(self.interface_number) {
+            if let Err(e) = self.handle.attach_kernel_driver(self.interface_number) {
+                tracing::error!("error re-attaching kernel driver: {e}");
+            }
+        }
     }
 }

@@ -181,9 +181,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.22"
+version = "1.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32db95edf998450acc7881c932f94cd9b05c87b4b2599e8bab064753da4acfd1"
+checksum = "5f4ac86a9e5bc1e2b3449ab9d7d3a6a405e3d1bb28d7b9be8614f55846ae3766"
 dependencies = [
  "shlex",
 ]
@@ -666,7 +666,7 @@ dependencies = [
 [[package]]
 name = "libusb1-sys"
 version = "0.7.0"
-source = "git+https://github.com/bobozaur/rusb?branch=async-futures#357655c12a0e37c1db564df0325adbe84777ee04"
+source = "git+https://github.com/bobozaur/rusb?branch=async-futures#167804cd6b0324ebcbb244f0fedb9a7fd4276baa"
 dependencies = [
  "cc",
  "libc",
@@ -939,7 +939,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 [[package]]
 name = "rusb"
 version = "0.9.4"
-source = "git+https://github.com/bobozaur/rusb?branch=async-futures#357655c12a0e37c1db564df0325adbe84777ee04"
+source = "git+https://github.com/bobozaur/rusb?branch=async-futures#167804cd6b0324ebcbb244f0fedb9a7fd4276baa"
 dependencies = [
  "libc",
  "libusb1-sys",
@@ -948,7 +948,7 @@ dependencies = [
 [[package]]
 name = "rusb-async"
 version = "0.0.1"
-source = "git+https://github.com/bobozaur/rusb?branch=async-futures#357655c12a0e37c1db564df0325adbe84777ee04"
+source = "git+https://github.com/bobozaur/rusb?branch=async-futures#167804cd6b0324ebcbb244f0fedb9a7fd4276baa"
 dependencies = [
  "libc",
  "rusb",
@@ -1325,7 +1325,6 @@ dependencies = [
  "systemstat",
  "thiserror 2.0.12",
  "tracing",
- "tracing-log",
  "tracing-subscriber",
 ]
 

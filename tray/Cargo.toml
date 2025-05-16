@@ -19,7 +19,6 @@ rusb = { workspace = true }
 rusb-async = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-tracing-log = { workspace = true }
 tracing-subscriber = { workspace = true }
 systemstat = { workspace = true }
 

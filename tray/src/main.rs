@@ -8,6 +8,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use anyhow::Context;
+use futures_util::TryFutureExt;
 use gtk::{SeparatorMenuItem, glib};
 use shared::FanSpeed;
 use tracing_subscriber::{EnvFilter, fmt};
@@ -46,19 +47,22 @@ fn main() -> AnyResult<()> {
     // An [`Rc<Cell<FanSpeed>>`] is used here to share the value between the speed auto task and
     // the main background task because FanSpeed is [`Copy`].
     let fan_speed = Rc::new(Cell::new(FanSpeed::Speed1));
-    glib::spawn_future_local(speed_auto_task(
-        device.clone(),
-        menu_items.clone(),
-        fan_speed.clone(),
-    ));
-    glib::spawn_future_local(process_device_state(
-        device,
-        menu_items,
-        fan_speed,
-        speed_label,
-        power_handler_id,
-        leds_handler_id,
-    ));
+    glib::spawn_future_local(
+        speed_auto_task(device.clone(), menu_items.clone(), fan_speed.clone())
+            .map_err(|_| gtk::main_quit()),
+    );
+
+    glib::spawn_future_local(
+        process_device_state(
+            device,
+            menu_items,
+            fan_speed,
+            speed_label,
+            power_handler_id,
+            leds_handler_id,
+        )
+        .map_err(|_| gtk::main_quit()),
+    );
 
     indicator.run();
     Ok(())

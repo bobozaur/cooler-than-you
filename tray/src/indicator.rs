@@ -1,5 +1,6 @@
 use std::{fmt::Debug, rc::Rc};
 
+use futures_util::TryFutureExt;
 use gtk::{
     Menu,
     glib::{self, SignalHandlerId},
@@ -78,8 +79,16 @@ impl Indicator {
         // being sent and read is minimal and happens as soon as the event
         // loop is started.
         glib::spawn_future_local(async move {
-            self.device.send_command(DeviceCommand::PowerOff).await.ok();
-            self.device.send_command(DeviceCommand::PowerOn).await.ok();
+            self.device
+                .send_command(DeviceCommand::PowerOff)
+                .map_err(|_| gtk::main_quit())
+                .await
+                .ok();
+            self.device
+                .send_command(DeviceCommand::PowerOn)
+                .map_err(|_| gtk::main_quit())
+                .await
+                .ok();
         });
 
         gtk::main();

@@ -9,6 +9,7 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 pub use anyhow::Result as AnyResult;
 pub use device::Device;
 use futures_util::TryStreamExt;
+pub use glib::spawn_future_local as spawn;
 use gtk::glib::{self, SignalHandlerId};
 pub use indicator::Indicator;
 pub use menu::item::{quit::QuitItem, speed_label::SpeedLabelItem};

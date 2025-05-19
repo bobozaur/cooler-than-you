@@ -5,7 +5,7 @@ build-std = ["core"]
 target = "avr-none"
 rustflags = ["-C", "target-cpu=atmega32u4"]
 
-[target.'cfg(target_arch = "avr")']
+[target.avr-none]
 runner = "ravedude leonardo -P /dev/ttyACM0 -d 0"
 
 # Configure the build for minimal size - AVRs have very little program memory

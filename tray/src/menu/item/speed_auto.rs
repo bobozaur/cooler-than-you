@@ -1,6 +1,9 @@
 use std::rc::Weak;
 
-use gtk::{CheckMenuItem, traits::GtkMenuItemExt};
+use gtk::{
+    CheckMenuItem,
+    traits::{CheckMenuItemExt, GtkMenuItemExt},
+};
 
 use crate::menu::{MenuItems, item::CustomMenuItem};
 
@@ -12,6 +15,8 @@ pub struct SpeedAuto;
 impl SpeedAutoItem {
     pub fn new(menu_items: Weak<MenuItems>) -> Self {
         let inner = CheckMenuItem::with_label("Auto fan speed");
+        inner.set_active(true);
+
         inner.connect_activate(move |_| {
             menu_items
                 .upgrade()

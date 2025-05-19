@@ -1,13 +1,11 @@
 use std::{fmt::Debug, rc::Rc};
 
-use futures_util::TryFutureExt;
 use gtk::{
     Menu,
-    glib::{self, SignalHandlerId},
+    glib::SignalHandlerId,
     traits::{MenuShellExt, WidgetExt},
 };
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-use shared::DeviceCommand;
 use tracing::instrument;
 
 use crate::{
@@ -20,16 +18,16 @@ pub struct Indicator {
     inner: InnerIndicator,
     menu: Menu,
     menu_items: Rc<MenuItems>,
-    device: Device,
 }
 
 impl Indicator {
+    /// Creates the tray [`Indicator`] instance.
     ///
     /// # Errors
+    ///
+    /// Returns an error if [`gtk::init`] fails.
     #[instrument(err(Debug))]
     pub fn new() -> AnyResult<Self> {
-        let device = Device::new()?;
-
         gtk::init()?;
 
         let menu_items = Rc::new(MenuItems::new());
@@ -45,22 +43,16 @@ impl Indicator {
             inner,
             menu,
             menu_items,
-            device,
         })
     }
 
-    pub fn add_menu_item<MI>(&mut self, menu_item: &MI) -> Option<SignalHandlerId>
+    pub fn add_menu_item<MI>(&mut self, menu_item: &MI, device: Device) -> Option<SignalHandlerId>
     where
         MI: MenuItemSetup,
     {
-        let (mi, handler_id) = menu_item.setup(self.menu_items.clone(), self.device.clone());
+        let (mi, handler_id) = menu_item.setup(self.menu_items.clone(), device);
         self.menu.append(mi);
         handler_id
-    }
-
-    #[must_use]
-    pub fn device(&self) -> &Device {
-        &self.device
     }
 
     #[must_use]
@@ -68,33 +60,16 @@ impl Indicator {
         &self.menu_items
     }
 
+    /// Blocks the current thread by calling [`gtk::main`] to run the event loop.
     pub fn run(mut self) {
         self.menu.show_all();
         self.inner.0.set_menu(&mut self.menu);
-
-        // Power cycle the device to ensure it's on.
-        // If it's already off, the first command will be a no-op.
-        //
-        // We send the commands this way so that the time between them
-        // being sent and read is minimal and happens as soon as the event
-        // loop is started.
-        glib::spawn_future_local(async move {
-            self.device
-                .send_command(DeviceCommand::PowerOff)
-                .map_err(|_| gtk::main_quit())
-                .await
-                .ok();
-            self.device
-                .send_command(DeviceCommand::PowerOn)
-                .map_err(|_| gtk::main_quit())
-                .await
-                .ok();
-        });
 
         gtk::main();
     }
 }
 
+/// Wrapper used for easier [`Debug`] impl of [`Indicator`].
 struct InnerIndicator(AppIndicator);
 
 impl Debug for InnerIndicator {

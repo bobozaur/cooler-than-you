@@ -26,6 +26,7 @@ where
             FdEvents::ReadWrite => IOCondition::IN.union(IOCondition::OUT),
         };
 
+        tracing::debug!("adding fd {fd} - condition: {condition:?} as source");
         let source_id = glib::source::unix_fd_add(fd, condition, handle_events_fn);
         self.fd_sources_map.lock().unwrap().insert(fd, source_id);
     }
@@ -33,6 +34,7 @@ where
     #[instrument(skip(self))]
     fn fd_removed(&self, fd: RawFd) {
         if let Some(source_id) = self.fd_sources_map.lock().unwrap().remove(&fd) {
+            tracing::debug!("removing fd {fd} as source");
             source_id.remove();
         }
     }

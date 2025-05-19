@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use gtk::{
     CheckMenuItem, MenuItem,
-    glib::{self, SignalHandlerId},
+    glib::SignalHandlerId,
     traits::{CheckMenuItemExt, GtkMenuItemExt},
 };
 use shared::DeviceCommand;
@@ -122,7 +122,7 @@ where
             menu_items.disable();
             let command = CMD::command(mi);
             let device = device.clone();
-            glib::spawn_future_local(async move { device.send_command(command).await });
+            crate::spawn(async move { device.send_command(command).await });
         });
 
         (&self.inner, Some(handler_id))

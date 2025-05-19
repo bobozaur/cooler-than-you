@@ -198,7 +198,6 @@ impl Stream for DeviceStateStream {
             .exactly_one()?
             .try_into()?;
 
-        tracing::info!("received state");
         let endpoint = self.in_endpoint_address;
         self.transfer.renew(endpoint, vec![0; 1])?;
 

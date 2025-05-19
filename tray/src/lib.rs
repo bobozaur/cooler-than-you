@@ -8,8 +8,7 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 
 pub use anyhow::Result as AnyResult;
 pub use device::Device;
-use futures_util::TryStreamExt;
-pub use glib::spawn_future_local as spawn;
+use futures_util::{TryFutureExt, TryStreamExt};
 use gtk::glib::{self, SignalHandlerId};
 pub use indicator::Indicator;
 pub use menu::item::{quit::QuitItem, speed_label::SpeedLabelItem};
@@ -18,6 +17,24 @@ use systemstat::{Platform, System};
 use tracing::instrument;
 
 use crate::menu::MenuItems;
+
+/// Spawns a fallible future on the event loop, quiting it by calling
+/// [`gtk::main_quit`] if the future returns an error.
+pub fn spawn<F>(fut: F)
+where
+    F: TryFutureExt + 'static,
+{
+    glib::spawn_future_local(fut.map_err(|_| gtk::main_quit()));
+}
+
+/// Power cycle the device to ensure it's on.
+/// If it's already off, the first command will be a no-op.
+#[instrument(skip_all, err(Debug))]
+pub async fn power_cycle_device(device: Device) -> AnyResult<()> {
+    device.send_command(DeviceCommand::PowerOff).await?;
+    device.send_command(DeviceCommand::PowerOn).await?;
+    Ok(())
+}
 
 #[instrument(skip_all, err(Debug))]
 pub async fn process_device_state(
@@ -32,6 +49,8 @@ pub async fn process_device_state(
         let mut state_stream = device.state_stream()?;
 
         while let Some(device_state) = state_stream.try_next().await? {
+            tracing::info!("received state: {device_state:?}");
+
             let speed = device_state.fan_speed();
             fan_speed.replace(speed);
             speed_label.update_speed(speed);
@@ -91,6 +110,7 @@ pub async fn speed_auto_task(
             };
 
             if let Some(command) = command {
+                tracing::info!("CPU temp: {temp}, fan speed: {fan_speed:?}");
                 device.send_command(command).await?;
             }
         }

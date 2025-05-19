@@ -4,7 +4,7 @@ use thiserror::Error as ThisError;
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FanSpeed {
-    Speed1,
+    Speed1 = 1,
     Speed2,
     Speed3,
     Speed4,
@@ -14,23 +14,11 @@ pub enum FanSpeed {
 
 impl FanSpeed {
     pub fn increase(&mut self) {
-        *self = match self {
-            FanSpeed::Speed1 => FanSpeed::Speed2,
-            FanSpeed::Speed2 => FanSpeed::Speed3,
-            FanSpeed::Speed3 => FanSpeed::Speed4,
-            FanSpeed::Speed4 => FanSpeed::Speed5,
-            FanSpeed::Speed5 | FanSpeed::Speed6 => FanSpeed::Speed6,
-        };
+        *self = Self::try_from(*self as u8 + 1).unwrap_or(Self::Speed6);
     }
 
     pub fn decrease(&mut self) {
-        *self = match self {
-            FanSpeed::Speed1 | FanSpeed::Speed2 => FanSpeed::Speed1,
-            FanSpeed::Speed3 => FanSpeed::Speed2,
-            FanSpeed::Speed4 => FanSpeed::Speed3,
-            FanSpeed::Speed5 => FanSpeed::Speed4,
-            FanSpeed::Speed6 => FanSpeed::Speed5,
-        };
+        *self = Self::try_from(*self as u8 - 1).unwrap_or(Self::Speed1);
     }
 }
 
@@ -40,30 +28,17 @@ impl From<FanSpeed> for u8 {
     }
 }
 
-impl From<FanSpeed> for char {
-    fn from(value: FanSpeed) -> Self {
-        match value {
-            FanSpeed::Speed1 => '1',
-            FanSpeed::Speed2 => '2',
-            FanSpeed::Speed3 => '3',
-            FanSpeed::Speed4 => '4',
-            FanSpeed::Speed5 => '5',
-            FanSpeed::Speed6 => '6',
-        }
-    }
-}
-
 impl TryFrom<u8> for FanSpeed {
     type Error = FanSpeedConvError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(FanSpeed::Speed1),
-            1 => Ok(FanSpeed::Speed2),
-            2 => Ok(FanSpeed::Speed3),
-            3 => Ok(FanSpeed::Speed4),
-            4 => Ok(FanSpeed::Speed5),
-            5 => Ok(FanSpeed::Speed6),
+            n if FanSpeed::Speed1 as u8 == n => Ok(FanSpeed::Speed1),
+            n if FanSpeed::Speed2 as u8 == n => Ok(FanSpeed::Speed2),
+            n if FanSpeed::Speed3 as u8 == n => Ok(FanSpeed::Speed3),
+            n if FanSpeed::Speed4 as u8 == n => Ok(FanSpeed::Speed4),
+            n if FanSpeed::Speed5 as u8 == n => Ok(FanSpeed::Speed5),
+            n if FanSpeed::Speed6 as u8 == n => Ok(FanSpeed::Speed6),
             _ => Err(FanSpeedConvError),
         }
     }
@@ -113,16 +88,6 @@ mod tests {
                 cmp::max(value.saturating_sub(1), FanSpeed::Speed1 as u8),
                 fan_speed as u8
             );
-        }
-    }
-
-    #[test]
-    fn test_fan_speed_to_char() {
-        for fan_speed in FanSpeed::iter() {
-            let ch = char::from(fan_speed);
-            let int = u8::from(fan_speed) + 1;
-            let int_ch = char::from_digit(int.into(), 10).unwrap();
-            assert_eq!(ch, int_ch);
         }
     }
 }

@@ -9,7 +9,7 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 pub use anyhow::Result as AnyResult;
 pub use device::Device;
 use futures_util::{TryFutureExt, TryStreamExt};
-use gtk::glib::{self, SignalHandlerId};
+use gtk::glib;
 pub use indicator::Indicator;
 pub use menu::item::{quit::QuitItem, speed_label::SpeedLabelItem};
 use shared::{DeviceCommand, FanSpeed};
@@ -41,9 +41,6 @@ pub async fn process_device_state(
     device: Device,
     menu_items: Rc<MenuItems>,
     fan_speed: Rc<Cell<FanSpeed>>,
-    mut speed_label: SpeedLabelItem,
-    power_handler_id: SignalHandlerId,
-    leds_handler_id: SignalHandlerId,
 ) -> AnyResult<()> {
     {
         let mut state_stream = device.state_stream()?;
@@ -53,14 +50,10 @@ pub async fn process_device_state(
 
             let speed = device_state.fan_speed();
             fan_speed.replace(speed);
-            speed_label.update_speed(speed);
+            menu_items.speed_label.update(speed);
 
-            menu_items
-                .power
-                .set_active(device_state.power_enabled(), &power_handler_id);
-            menu_items
-                .leds
-                .set_active(device_state.leds_enabled(), &leds_handler_id);
+            menu_items.power.set_active(device_state.power_enabled());
+            menu_items.leds.set_active(device_state.leds_enabled());
 
             if let Some(command) = device_state.command_to_repeat() {
                 device.send_command(command).await?;

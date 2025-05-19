@@ -1,24 +1,16 @@
-use std::{fmt::Debug, rc::Rc};
+use std::{cell::Cell, fmt::Debug, rc::Rc};
 
 use gtk::{
-    Menu,
-    glib::SignalHandlerId,
+    Menu, SeparatorMenuItem,
     traits::{MenuShellExt, WidgetExt},
 };
 use libappindicator::{AppIndicator, AppIndicatorStatus};
+use shared::FanSpeed;
 use tracing::instrument;
 
-use crate::{
-    AnyResult, Device,
-    menu::{MenuItems, item::MenuItemSetup},
-};
+use crate::{AnyResult, Device, menu::MenuItems};
 
-#[derive(Debug)]
-pub struct Indicator {
-    inner: InnerIndicator,
-    menu: Menu,
-    menu_items: Rc<MenuItems>,
-}
+pub struct Indicator(AppIndicator);
 
 impl Indicator {
     /// Creates the tray [`Indicator`] instance.
@@ -30,50 +22,58 @@ impl Indicator {
     pub fn new() -> AnyResult<Self> {
         gtk::init()?;
 
-        let menu_items = Rc::new(MenuItems::new());
-        let menu = Menu::new();
-
         let mut app_indicator = AppIndicator::new("CoolerThanYou tray icon", "");
         app_indicator.set_status(AppIndicatorStatus::Active);
         app_indicator.set_icon_theme_path("");
         app_indicator.set_icon_full("cooler-than-you", "icon");
-        let inner = InnerIndicator(app_indicator);
 
-        Ok(Self {
-            inner,
-            menu,
-            menu_items,
-        })
-    }
-
-    pub fn add_menu_item<MI>(&mut self, menu_item: &MI, device: Device) -> Option<SignalHandlerId>
-    where
-        MI: MenuItemSetup,
-    {
-        let (mi, handler_id) = menu_item.setup(self.menu_items.clone(), device);
-        self.menu.append(mi);
-        handler_id
-    }
-
-    #[must_use]
-    pub fn menu_items(&self) -> &Rc<MenuItems> {
-        &self.menu_items
+        Ok(Self(app_indicator))
     }
 
     /// Blocks the current thread by calling [`gtk::main`] to run the event loop.
-    pub fn run(mut self) {
-        self.menu.show_all();
-        self.inner.0.set_menu(&mut self.menu);
+    pub fn run(mut self, device: Device) {
+        let mut menu = Menu::new();
+        let menu_items = MenuItems::new(device.clone());
+
+        menu.append(menu_items.speed_label.as_ref());
+        menu.append(&SeparatorMenuItem::new());
+        menu.append(menu_items.speed_auto.as_ref());
+        menu.append(menu_items.speed_up.as_ref());
+        menu.append(menu_items.speed_down.as_ref());
+        menu.append(&SeparatorMenuItem::new());
+        menu.append(menu_items.leds.as_ref());
+        menu.append(menu_items.leds_change_color.as_ref());
+        menu.append(&SeparatorMenuItem::new());
+        menu.append(menu_items.power.as_ref());
+        menu.append(&SeparatorMenuItem::new());
+        menu.append(menu_items.quit.as_ref());
+
+        // We send the commands this way so that the time between them being sent and read is
+        // minimal and happens as soon as the event loop is started.
+        crate::spawn(crate::power_cycle_device(device.clone()));
+
+        // This will self-adjust, we just start with the lowest speed.
+        // An [`Rc<Cell<FanSpeed>>`] is used here to share the value between the speed auto task and
+        // the main background task because FanSpeed is [`Copy`].
+        let fan_speed = Rc::new(Cell::new(FanSpeed::Speed1));
+
+        crate::spawn(crate::speed_auto_task(
+            device.clone(),
+            menu_items.clone(),
+            fan_speed.clone(),
+        ));
+
+        crate::spawn(crate::process_device_state(device, menu_items, fan_speed));
+
+        menu.show_all();
+        self.0.set_menu(&mut menu);
 
         gtk::main();
     }
 }
 
-/// Wrapper used for easier [`Debug`] impl of [`Indicator`].
-struct InnerIndicator(AppIndicator);
-
-impl Debug for InnerIndicator {
+impl Debug for Indicator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InnerIndicator").finish()
+        f.debug_struct("Indicator").finish()
     }
 }

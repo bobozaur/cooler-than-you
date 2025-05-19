@@ -3,61 +3,19 @@ pub mod quit;
 pub mod speed_auto;
 pub mod speed_label;
 
-use std::{marker::PhantomData, rc::Rc};
-
 use gtk::{
-    CheckMenuItem, MenuItem, SeparatorMenuItem,
-    glib::{IsA, ObjectExt, SignalHandlerId},
-    traits::{CheckMenuItemExt, GtkMenuItemExt, WidgetExt},
+    CheckMenuItem,
+    glib::{ObjectExt, SignalHandlerId},
+    traits::{CheckMenuItemExt, WidgetExt},
 };
 
-use crate::{Device, menu::MenuItems};
-
-pub trait ItemLabel {
-    const LABEL: &str;
-}
-
-pub trait MenuItemSetup {
-    type MenuItem: IsA<MenuItem>;
-
-    fn setup(
-        &self,
-        menu_items: Rc<MenuItems>,
-        device: Device,
-    ) -> (&Self::MenuItem, Option<SignalHandlerId>);
-}
-
-impl MenuItemSetup for SeparatorMenuItem {
-    type MenuItem = Self;
-
-    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
-        (self, None)
-    }
-}
-
 #[derive(Debug)]
-pub struct CustomMenuItem<MI, CMD> {
+pub struct CustomMenuItem<MI, K> {
     inner: MI,
-    marker: PhantomData<fn() -> CMD>,
+    kind: K,
 }
 
-impl<MI, CMD> CustomMenuItem<MI, CMD>
-where
-    CMD: ItemLabel,
-    MI: Default + GtkMenuItemExt,
-{
-    pub fn new() -> Self {
-        let inner = MI::default();
-        inner.set_label(CMD::LABEL);
-
-        Self {
-            inner,
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<MI, CMD> CustomMenuItem<MI, CMD>
+impl<MI, K> CustomMenuItem<MI, K>
 where
     MI: WidgetExt,
 {
@@ -66,24 +24,25 @@ where
     }
 }
 
-impl<CMD> CustomMenuItem<CheckMenuItem, CMD> {
-    pub fn set_active(&self, is_active: bool, handler_id: &SignalHandlerId) {
-        self.inner.block_signal(handler_id);
-        self.inner.set_active(is_active);
-        self.inner.unblock_signal(handler_id);
-    }
-
+impl<K> CustomMenuItem<CheckMenuItem, K> {
     pub fn is_active(&self) -> bool {
         self.inner.is_active()
     }
 }
 
-impl<MI, CMD> Default for CustomMenuItem<MI, CMD>
+impl<K> CustomMenuItem<CheckMenuItem, K>
 where
-    CMD: ItemLabel,
-    MI: Default + GtkMenuItemExt,
+    K: AsRef<SignalHandlerId>,
 {
-    fn default() -> Self {
-        Self::new()
+    pub fn set_active(&self, is_active: bool) {
+        self.inner.block_signal(self.kind.as_ref());
+        self.inner.set_active(is_active);
+        self.inner.unblock_signal(self.kind.as_ref());
+    }
+}
+
+impl<MI, K> AsRef<MI> for CustomMenuItem<MI, K> {
+    fn as_ref(&self) -> &MI {
+        &self.inner
     }
 }

@@ -1,49 +1,61 @@
-use std::rc::Rc;
-
 use gtk::{
     MenuItem,
-    glib::SignalHandlerId,
     traits::{GtkMenuItemExt, WidgetExt},
 };
 use shared::FanSpeed;
 
-use crate::{
-    Device,
-    menu::{MenuItems, item::MenuItemSetup},
-};
+use crate::menu::item::CustomMenuItem;
 
-#[derive(Debug)]
-pub struct SpeedLabelItem {
-    inner: MenuItem,
-    buf: String,
+pub type SpeedLabelItem = CustomMenuItem<MenuItem, SpeedLabel>;
+
+#[derive(Clone, Copy, Debug)]
+pub struct SpeedLabel;
+
+macro_rules! make_label {
+    ($bytes:expr) => {{
+        const PREFIX: &[u8] = SpeedLabelItem::LABEL_PREFIX.as_bytes();
+        const LEN: usize = PREFIX.len() + $bytes.len();
+        const ARR: [u8; LEN] = {
+            let mut arr: [u8; LEN] = [0; LEN];
+            let (prefix, custom) = arr.split_at_mut(PREFIX.len());
+            prefix.copy_from_slice(PREFIX);
+            custom.copy_from_slice($bytes);
+            arr
+        };
+
+        const LABEL: &str = match str::from_utf8(&ARR) {
+            Ok(s) => s,
+            Err(_) => panic!("invalid label"),
+        };
+
+        LABEL
+    }};
 }
 
 impl SpeedLabelItem {
-    #[must_use]
-    pub fn new() -> Self {
-        let buf = String::from("Fan speed: 0");
-        let inner = MenuItem::with_label(&buf);
-        inner.set_sensitive(false);
-        Self { inner, buf }
-    }
+    const LABEL_PREFIX: &str = "Fan speed: ";
 
-    pub fn update_speed(&mut self, fan_speed: FanSpeed) {
-        self.buf.pop();
-        self.buf.push(char::from(fan_speed));
-        self.inner.set_label(&self.buf);
+    pub fn update(&self, fan_speed: FanSpeed) {
+        let label = match fan_speed {
+            FanSpeed::Speed1 => make_label!(&[FanSpeed::Speed1 as u8 + b'0']),
+            FanSpeed::Speed2 => make_label!(&[FanSpeed::Speed2 as u8 + b'0']),
+            FanSpeed::Speed3 => make_label!(&[FanSpeed::Speed3 as u8 + b'0']),
+            FanSpeed::Speed4 => make_label!(&[FanSpeed::Speed4 as u8 + b'0']),
+            FanSpeed::Speed5 => make_label!(&[FanSpeed::Speed5 as u8 + b'0']),
+            FanSpeed::Speed6 => make_label!(&[FanSpeed::Speed6 as u8 + b'0']),
+        };
+
+        self.inner.set_label(label);
     }
 }
 
 impl Default for SpeedLabelItem {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl MenuItemSetup for SpeedLabelItem {
-    type MenuItem = MenuItem;
-
-    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
-        (&self.inner, None)
+        let inner = MenuItem::with_label(make_label!(b"N/A"));
+        inner.set_sensitive(false);
+        Self {
+            inner,
+            kind: SpeedLabel,
+        }
     }
 }

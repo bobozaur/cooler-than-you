@@ -1,24 +1,41 @@
 pub mod item;
 
-use crate::menu::item::{
-    command::{LedsChangeColorItem, LedsToggleItem, PowerToggleItem, SpeedDownItem, SpeedUpItem},
-    speed_auto::SpeedAutoItem,
+use std::rc::Rc;
+
+use crate::{
+    Device, QuitItem, SpeedLabelItem,
+    menu::item::{
+        command::{
+            LedsChangeColorItem, LedsToggleItem, PowerToggleItem, SpeedDownItem, SpeedUpItem,
+        },
+        speed_auto::SpeedAutoItem,
+    },
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MenuItems {
+    pub speed_label: SpeedLabelItem,
     pub speed_auto: SpeedAutoItem,
     pub speed_up: SpeedUpItem,
     pub speed_down: SpeedDownItem,
     pub leds: LedsToggleItem,
     pub leds_change_color: LedsChangeColorItem,
     pub power: PowerToggleItem,
+    pub quit: QuitItem,
 }
 
 impl MenuItems {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(device: Device) -> Rc<Self> {
+        Rc::new_cyclic(move |menu_items| Self {
+            speed_label: SpeedLabelItem::default(),
+            speed_auto: SpeedAutoItem::new(menu_items.clone()),
+            speed_up: SpeedUpItem::new(menu_items.clone(), device.clone()),
+            speed_down: SpeedDownItem::new(menu_items.clone(), device.clone()),
+            leds: LedsToggleItem::new(menu_items.clone(), device.clone()),
+            leds_change_color: LedsChangeColorItem::new(menu_items.clone(), device.clone()),
+            power: PowerToggleItem::new(menu_items.clone(), device),
+            quit: QuitItem::default(),
+        })
     }
 
     pub fn refresh_speed_items_sensitivity(&self) {

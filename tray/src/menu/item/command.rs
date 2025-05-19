@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::rc::Weak;
 
 use gtk::{
     CheckMenuItem, MenuItem,
@@ -9,10 +9,7 @@ use shared::DeviceCommand;
 
 use crate::{
     Device,
-    menu::{
-        MenuItems,
-        item::{CustomMenuItem, ItemLabel, MenuItemSetup},
-    },
+    menu::{MenuItems, item::CustomMenuItem},
 };
 
 pub type SpeedUpItem = CustomMenuItem<MenuItem, SpeedUp>;
@@ -21,65 +18,78 @@ pub type LedsChangeColorItem = CustomMenuItem<MenuItem, LedsChangeColor>;
 pub type LedsToggleItem = CustomMenuItem<CheckMenuItem, LedsToggle>;
 pub type PowerToggleItem = CustomMenuItem<CheckMenuItem, PowerToggle>;
 
-#[derive(Clone, Copy, Debug)]
-pub struct SpeedUp;
-#[derive(Clone, Copy, Debug)]
-pub struct SpeedDown;
-#[derive(Clone, Copy, Debug)]
-pub struct LedsChangeColor;
-#[derive(Clone, Copy, Debug)]
-pub struct LedsToggle;
-#[derive(Clone, Copy, Debug)]
-pub struct PowerToggle;
+pub trait CommandItemKind {
+    const LABEL: &str;
 
-pub trait CommandItem: ItemLabel {
     type MenuItem: Default + GtkMenuItemExt;
+
+    fn new(handler_id: SignalHandlerId) -> Self;
 
     fn command(mi: &Self::MenuItem) -> DeviceCommand;
 }
 
-impl ItemLabel for SpeedUp {
-    const LABEL: &str = "Increase fan speed";
-}
+#[derive(Clone, Copy, Debug)]
+pub struct SpeedUp;
 
-impl CommandItem for SpeedUp {
+impl CommandItemKind for SpeedUp {
+    const LABEL: &str = "Increase fan speed";
+
     type MenuItem = MenuItem;
+
+    fn new(_: SignalHandlerId) -> Self {
+        Self
+    }
 
     fn command(_: &Self::MenuItem) -> DeviceCommand {
         DeviceCommand::SpeedUp
     }
 }
 
-impl ItemLabel for SpeedDown {
-    const LABEL: &str = "Decrease fan speed";
-}
+#[derive(Clone, Copy, Debug)]
+pub struct SpeedDown;
 
-impl CommandItem for SpeedDown {
+impl CommandItemKind for SpeedDown {
+    const LABEL: &str = "Decrease fan speed";
+
     type MenuItem = MenuItem;
+
+    fn new(_: SignalHandlerId) -> Self {
+        Self
+    }
 
     fn command(_: &Self::MenuItem) -> DeviceCommand {
         DeviceCommand::SpeedDown
     }
 }
 
-impl ItemLabel for LedsChangeColor {
-    const LABEL: &str = "Change lights color";
-}
+#[derive(Clone, Copy, Debug)]
+pub struct LedsChangeColor;
 
-impl CommandItem for LedsChangeColor {
+impl CommandItemKind for LedsChangeColor {
+    const LABEL: &str = "Change lights color";
+
     type MenuItem = MenuItem;
+
+    fn new(_: SignalHandlerId) -> Self {
+        Self
+    }
 
     fn command(_: &Self::MenuItem) -> DeviceCommand {
         DeviceCommand::LedsColorChange
     }
 }
 
-impl ItemLabel for LedsToggle {
-    const LABEL: &str = "Lights";
-}
+#[derive(Debug)]
+pub struct LedsToggle(SignalHandlerId);
 
-impl CommandItem for LedsToggle {
+impl CommandItemKind for LedsToggle {
+    const LABEL: &str = "Lights";
+
     type MenuItem = CheckMenuItem;
+
+    fn new(handler_id: SignalHandlerId) -> Self {
+        Self(handler_id)
+    }
 
     fn command(mi: &Self::MenuItem) -> DeviceCommand {
         if mi.is_active() {
@@ -90,12 +100,23 @@ impl CommandItem for LedsToggle {
     }
 }
 
-impl ItemLabel for PowerToggle {
-    const LABEL: &str = "Power";
+impl AsRef<SignalHandlerId> for LedsToggle {
+    fn as_ref(&self) -> &SignalHandlerId {
+        &self.0
+    }
 }
 
-impl CommandItem for PowerToggle {
+#[derive(Debug)]
+pub struct PowerToggle(SignalHandlerId);
+
+impl CommandItemKind for PowerToggle {
+    const LABEL: &str = "Power";
+
     type MenuItem = CheckMenuItem;
+
+    fn new(handler_id: SignalHandlerId) -> Self {
+        Self(handler_id)
+    }
 
     fn command(mi: &Self::MenuItem) -> DeviceCommand {
         if mi.is_active() {
@@ -106,25 +127,33 @@ impl CommandItem for PowerToggle {
     }
 }
 
-impl<MI, CMD> MenuItemSetup for CustomMenuItem<MI, CMD>
-where
-    CMD: CommandItem<MenuItem = MI>,
-    MI: GtkMenuItemExt,
-{
-    type MenuItem = MI;
+impl AsRef<SignalHandlerId> for PowerToggle {
+    fn as_ref(&self) -> &SignalHandlerId {
+        &self.0
+    }
+}
 
-    fn setup(
-        &self,
-        menu_items: Rc<MenuItems>,
-        device: Device,
-    ) -> (&Self::MenuItem, Option<SignalHandlerId>) {
-        let handler_id = self.inner.connect_activate(move |mi| {
-            menu_items.disable();
-            let command = CMD::command(mi);
+impl<MI, K> CustomMenuItem<MI, K>
+where
+    K: CommandItemKind<MenuItem = MI>,
+    MI: Default + GtkMenuItemExt,
+{
+    pub fn new(menu_items: Weak<MenuItems>, device: Device) -> Self {
+        let inner = MI::default();
+        inner.set_label(K::LABEL);
+
+        let signal_handler_id = inner.connect_activate(move |mi| {
+            menu_items
+                .upgrade()
+                .expect("menu items are never dropped")
+                .disable();
+
+            let command = K::command(mi);
             let device = device.clone();
             crate::spawn(async move { device.send_command(command).await });
         });
 
-        (&self.inner, Some(handler_id))
+        let kind = K::new(signal_handler_id);
+        Self { inner, kind }
     }
 }

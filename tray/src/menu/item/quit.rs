@@ -1,32 +1,16 @@
-use std::rc::Rc;
+use gtk::{MenuItem, traits::GtkMenuItemExt};
 
-use gtk::{MenuItem, glib::SignalHandlerId, traits::GtkMenuItemExt};
+use crate::menu::item::CustomMenuItem;
 
-use crate::{
-    Device,
-    menu::{MenuItems, item::MenuItemSetup},
-};
+pub type QuitItem = CustomMenuItem<MenuItem, Quit>;
 
-#[derive(Debug)]
-pub struct QuitItem(MenuItem);
-
-impl QuitItem {
-    #[must_use]
-    pub fn new() -> Self {
-        Self(MenuItem::with_label("Quit"))
-    }
-}
+#[derive(Clone, Copy, Debug)]
+pub struct Quit;
 
 impl Default for QuitItem {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl MenuItemSetup for QuitItem {
-    type MenuItem = MenuItem;
-
-    fn setup(&self, _: Rc<MenuItems>, _: Device) -> (&Self::MenuItem, Option<SignalHandlerId>) {
-        (&self.0, Some(self.0.connect_activate(|_| gtk::main_quit())))
+        let inner = MenuItem::with_label("Quit");
+        inner.connect_activate(|_| gtk::main_quit());
+        Self { inner, kind: Quit }
     }
 }

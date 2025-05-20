@@ -28,10 +28,8 @@ impl Indicator {
     pub fn new() -> AnyResult<Self> {
         gtk::init()?;
 
-        let mut app_indicator = AppIndicator::new("CoolerThanYou tray icon", "");
+        let mut app_indicator = AppIndicator::new("cooler-than-you-tray", "cooler-than-you");
         app_indicator.set_status(AppIndicatorStatus::Active);
-        app_indicator.set_icon_theme_path("");
-        app_indicator.set_icon_full("cooler-than-you", "icon");
 
         Ok(Self(app_indicator))
     }

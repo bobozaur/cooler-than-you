@@ -2,6 +2,8 @@ use gtk::{MenuItem, traits::GtkMenuItemExt};
 
 use crate::menu::item::CustomMenuItem;
 
+/// Simple item that is always UI sensitive.
+/// Used as the UI way of graceful shutdown.
 pub type QuitItem = CustomMenuItem<MenuItem, Quit>;
 
 #[derive(Clone, Copy, Debug)]

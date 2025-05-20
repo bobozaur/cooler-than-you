@@ -16,6 +16,7 @@ use tracing::instrument;
 
 use crate::{AnyResult, exactly_one::ExactlyOneIter, fd_callbacks::GlibFdCallbacks};
 
+/// Cheaply clonable struct used to represent the physical device to communicate with.
 #[derive(Clone, Debug)]
 pub struct Device(Arc<DeviceInner>);
 
@@ -205,6 +206,8 @@ impl Stream for DeviceStateStream {
     }
 }
 
+/// Inner struct that allows providing a [`Drop`] implementation for
+/// the cheaply clonable [`Device`] wrapper type.
 #[derive(Clone, Debug)]
 struct DeviceInner {
     /// Using an [`Arc`] because that's what the async libusb transfers require.

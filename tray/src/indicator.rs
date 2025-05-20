@@ -10,6 +10,11 @@ use tracing::instrument;
 
 use crate::{AnyResult, Device, menu::MenuItems};
 
+/// The system tray icon UI indicator.
+///
+/// Somewhat equivalent to a [`gtk::Application`], in that it takes care of
+/// setting up `gtk` related stuff under the hood and blocks the current thread
+/// when ran.
 pub struct Indicator(AppIndicator);
 
 impl Indicator {

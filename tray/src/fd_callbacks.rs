@@ -4,8 +4,10 @@ use gtk::glib::{self, ControlFlow, IOCondition, SourceId};
 use rusb_async::{AsyncUsbContext, FdCallbacks, FdEvents};
 use tracing::instrument;
 
+/// File descriptor callback state holding struct, implementor of [`FdCallbacks`].
 #[derive(Debug, Default)]
 pub struct GlibFdCallbacks {
+    // NOTE: `rusb` is being threadsafe, therefore a [`RefCell`] would not suffice.
     fd_sources_map: Mutex<BTreeMap<RawFd, SourceId>>,
 }
 

@@ -11,7 +11,6 @@ pub use device::Device;
 use futures_util::{TryFutureExt, TryStreamExt};
 use gtk::glib;
 pub use indicator::Indicator;
-pub use menu::item::{quit::QuitItem, speed_label::SpeedLabelItem};
 use shared::{DeviceCommand, FanSpeed};
 use systemstat::{Platform, System};
 use tracing::instrument;

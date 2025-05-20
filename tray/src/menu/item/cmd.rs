@@ -85,7 +85,7 @@ where
             cache.get_or_init(cache_fn).disable();
 
             let device = device.clone();
-            crate::spawn(async move { device.send_command(K::COMMAND).await });
+            crate::spawn_local(async move { device.send_command(K::COMMAND).await });
         });
 
         let kind = K::THIS;
@@ -170,7 +170,7 @@ where
             };
 
             let device = device.clone();
-            crate::spawn(async move { device.send_command(command).await });
+            crate::spawn_local(async move { device.send_command(command).await });
         });
 
         let kind = K::from(signal_handler_id);

@@ -1,11 +1,12 @@
-use std::{cell::Cell, fmt::Debug, rc::Rc};
+use std::{fmt::Debug, rc::Rc};
 
+use futures_util::TryStreamExt;
 use gtk::{
     Menu, SeparatorMenuItem,
     traits::{MenuShellExt, WidgetExt},
 };
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-use shared::FanSpeed;
+use shared::DeviceCommand;
 use tracing::instrument;
 
 use crate::{AnyResult, Device, menu::MenuItems};
@@ -55,25 +56,49 @@ impl Indicator {
 
         // We send the commands this way so that the time between them being sent and read is
         // minimal and happens as soon as the event loop is started.
-        crate::spawn(crate::power_cycle_device(device.clone()));
+        crate::spawn_local(Self::power_cycle_device(device.clone()));
 
-        // This will self-adjust, we just start with the lowest speed.
-        // An [`Rc<Cell<FanSpeed>>`] is used here to share the value between the speed auto task and
-        // the main background task because FanSpeed is [`Copy`].
-        let fan_speed = Rc::new(Cell::new(FanSpeed::Speed1));
-
-        crate::spawn(crate::speed_auto_task(
-            device.clone(),
-            menu_items.clone(),
-            fan_speed.clone(),
-        ));
-
-        crate::spawn(crate::process_device_state(device, menu_items, fan_speed));
+        // Spawn background task.
+        crate::spawn_local(Self::background_task(device, menu_items));
 
         menu.show_all();
         self.0.set_menu(&mut menu);
 
         gtk::main();
+    }
+
+    /// Power cycle the device to ensure it's on.
+    /// If it's already off, the first command will be a no-op.
+    #[instrument(skip_all, err(Debug))]
+    async fn power_cycle_device(device: Device) -> AnyResult<()> {
+        device.send_command(DeviceCommand::PowerOff).await?;
+        device.send_command(DeviceCommand::PowerOn).await?;
+        Ok(())
+    }
+
+    #[instrument(skip_all, err(Debug))]
+    async fn background_task(device: Device, menu_items: Rc<MenuItems>) -> AnyResult<()> {
+        let mut state_stream = device.state_stream()?;
+
+        while let Some(device_state) = state_stream.try_next().await? {
+            tracing::info!("received state: {device_state:?}");
+
+            let speed = device_state.fan_speed();
+            menu_items.speed_label.update_label(speed);
+            menu_items.speed_auto.register_speed(speed);
+
+            menu_items.power.set_active(device_state.power_enabled());
+            menu_items.leds.set_active(device_state.leds_enabled());
+
+            if let Some(command) = device_state.command_to_repeat() {
+                device.send_command(command).await?;
+                continue;
+            }
+
+            menu_items.refresh_sensitivity();
+        }
+
+        Ok(())
     }
 }
 

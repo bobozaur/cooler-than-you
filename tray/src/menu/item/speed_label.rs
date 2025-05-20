@@ -36,7 +36,7 @@ macro_rules! make_label {
 }
 
 impl SpeedLabelItem {
-    pub fn update(&self, fan_speed: FanSpeed) {
+    pub fn update_label(&self, fan_speed: FanSpeed) {
         macro_rules! make_speed_label {
             ($speed:expr) => {
                 make_label!(&[$speed as u8 + b'0'])

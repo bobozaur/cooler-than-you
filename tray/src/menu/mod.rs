@@ -42,7 +42,7 @@ impl MenuItems {
         //   the items and introduces room for mistakes.
         Rc::new_cyclic(move |menu_items| Self {
             speed_label: SpeedLabelItem::default(),
-            speed_auto: SpeedAutoItem::new_checkbox(menu_items.clone()),
+            speed_auto: SpeedAutoItem::new_checkbox(menu_items.clone(), device.clone()),
             speed_up: SpeedUpItem::new(menu_items.clone(), device.clone()),
             speed_down: SpeedDownItem::new(menu_items.clone(), device.clone()),
             leds: LedsToggleItem::new_checkbox(menu_items.clone(), device.clone()),

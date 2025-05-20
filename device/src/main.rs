@@ -79,7 +79,7 @@ fn main() -> ! {
     // the timer or it won't work correctly.
     setup_usb(pll, usb);
 
-    // Always ensure highest speed is set on startup.
+    // Always ensure lowest speed is set on startup.
     for _ in 0..FanSpeed::Speed6 as u8 {
         speed_down_btn.short_press();
     }

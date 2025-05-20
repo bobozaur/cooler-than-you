@@ -76,6 +76,8 @@ impl Indicator {
         Ok(())
     }
 
+    /// The main background tasks, meant to continuously read the device state
+    /// and adjust the UI according to it.
     #[instrument(skip_all, err(Debug))]
     async fn background_task(device: Device, menu_items: Rc<MenuItems>) -> AnyResult<()> {
         let mut state_stream = device.state_stream()?;
@@ -92,6 +94,7 @@ impl Indicator {
 
             if let Some(command) = device_state.command_to_repeat() {
                 device.send_command(command).await?;
+                // Do not refresh sensitivity if we need to repeat a command first.
                 continue;
             }
 

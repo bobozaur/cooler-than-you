@@ -12,7 +12,7 @@ pub use indicator::Indicator;
 
 /// Spawns a fallible future on the event loop, quiting it by calling
 /// [`gtk::main_quit`] if the future returns an error.
-pub fn spawn_local<F>(fut: F) -> JoinHandle<Result<F::Ok, F::Error>>
+fn spawn_local<F>(fut: F) -> JoinHandle<Result<F::Ok, F::Error>>
 where
     F: TryFutureExt + 'static,
 {

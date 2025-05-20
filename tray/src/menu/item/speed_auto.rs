@@ -44,9 +44,13 @@ impl SpeedAutoItem {
 
         inner.connect_activate(move |mi| {
             match join_handle.replace(None) {
-                Some(h) => h.abort(),
+                Some(h) => {
+                    tracing::debug!("stopping speed auto task");
+                    h.abort();
+                }
                 // Ensure the task is only spawned on activation.
                 None if mi.is_active() => {
+                    tracing::debug!("spawning speed auto task");
                     let fut = Self::speed_auto_task(device.clone(), fan_speed.clone());
                     join_handle.set(Some(crate::spawn_local(fut)));
                 }

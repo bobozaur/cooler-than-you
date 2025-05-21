@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=CoolerThanYou
+Comment=Autostart CoolerThanYou System Tray Icon
+Icon=cooler-than-you
+Exec=cooler-than-you
+Terminal=false
+Type=Application
+NoDisplay=true
+Categories=

@@ -1,0 +1,1 @@
+SUBSYSTEM=="usb", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="05df", ATTRS{manufacturer}=="mirceapetrebogdan@gmail.com", ATTRS{product}=="Cooler Than You", GROUP="plugdev", TAG+="uaccess"

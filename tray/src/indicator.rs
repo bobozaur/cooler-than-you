@@ -16,7 +16,10 @@ use crate::{AnyResult, Device, menu::MenuItems};
 /// Somewhat equivalent to a [`gtk::Application`], in that it takes care of
 /// setting up `gtk` related stuff under the hood and blocks the current thread
 /// when ran.
-pub struct Indicator(AppIndicator);
+pub struct Indicator {
+    app_indicator: AppIndicator,
+    fan_curve: [f32; 5],
+}
 
 impl Indicator {
     /// Creates the tray [`Indicator`] instance.
@@ -25,19 +28,22 @@ impl Indicator {
     ///
     /// Returns an error if [`gtk::init`] fails.
     #[instrument(err(Debug))]
-    pub fn new() -> AnyResult<Self> {
+    pub fn new(fan_curve: [f32; 5]) -> AnyResult<Self> {
         gtk::init()?;
 
         let mut app_indicator = AppIndicator::new("cooler-than-you-tray", "cooler-than-you");
         app_indicator.set_status(AppIndicatorStatus::Active);
 
-        Ok(Self(app_indicator))
+        Ok(Self {
+            app_indicator,
+            fan_curve,
+        })
     }
 
     /// Blocks the current thread by calling [`gtk::main`] to run the event loop.
     pub fn run(mut self, device: Device) {
         let mut menu = Menu::new();
-        let menu_items = MenuItems::new(device.clone());
+        let menu_items = MenuItems::new(device.clone(), self.fan_curve);
 
         menu.append(menu_items.speed_label.as_ref());
         menu.append(&SeparatorMenuItem::new());
@@ -60,7 +66,7 @@ impl Indicator {
         crate::spawn_local(Self::background_task(device, menu_items));
 
         menu.show_all();
-        self.0.set_menu(&mut menu);
+        self.app_indicator.set_menu(&mut menu);
 
         gtk::main();
     }

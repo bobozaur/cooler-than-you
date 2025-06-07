@@ -2,7 +2,7 @@
 Name=CoolerThanYou
 Comment=Autostart CoolerThanYou System Tray Icon
 Icon=cooler-than-you
-Exec=cooler-than-you
+Exec=while true; do RUST_LOG="info" cooler-than-you; sleep 30; done
 Terminal=false
 Type=Application
 NoDisplay=true

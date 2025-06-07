@@ -28,7 +28,7 @@ pub struct SpeedAuto(Rc<Cell<FanSpeed>>);
 impl SpeedAutoItem {
     // NOTE: Used this name to be consistent with the other checkbox items
     //       construction method.
-    pub fn new_checkbox(menu_items: Weak<MenuItems>, device: Device) -> Self {
+    pub fn new_checkbox(menu_items: Weak<MenuItems>, device: Device, fan_curve: [f32; 5]) -> Self {
         // This will self-adjust, we just start with the lowest speed.
         // An [`Rc<Cell<FanSpeed>>`] is used here to share the value between the speed auto task and
         // the main background task because of `gtk` callbacks trait bounds and because [`FanSpeed`]
@@ -38,7 +38,7 @@ impl SpeedAutoItem {
 
         let inner = CheckMenuItem::with_label("Auto fan speed");
         inner.set_active(true);
-        let fut = Self::speed_auto_task(device.clone(), fan_speed.clone());
+        let fut = Self::speed_auto_task(device.clone(), fan_speed.clone(), fan_curve);
         let join_handle: Cell<Option<JoinHandle<_>>> = Cell::new(Some(crate::spawn_local(fut)));
         let cache = OnceCell::new();
 
@@ -51,7 +51,7 @@ impl SpeedAutoItem {
                 // Ensure the task is only spawned on activation.
                 None if mi.is_active() => {
                     tracing::debug!("spawning speed auto task");
-                    let fut = Self::speed_auto_task(device.clone(), fan_speed.clone());
+                    let fut = Self::speed_auto_task(device.clone(), fan_speed.clone(), fan_curve);
                     join_handle.set(Some(crate::spawn_local(fut)));
                 }
                 _ => tracing::warn!("no task found on item de-activation"),
@@ -72,24 +72,28 @@ impl SpeedAutoItem {
     }
 
     #[instrument(skip_all, err(Debug))]
-    async fn speed_auto_task(device: Device, fan_speed: Rc<Cell<FanSpeed>>) -> AnyResult<()> {
+    async fn speed_auto_task(
+        device: Device,
+        fan_speed: Rc<Cell<FanSpeed>>,
+        fan_curve: [f32; 5],
+    ) -> AnyResult<()> {
         let system = System::new();
         let mut ticker = glib::interval_stream_seconds(1);
 
         while let Some(()) = ticker.next().await {
             if let (Ok(temp), fan_speed) = (system.cpu_temp(), fan_speed.get()) {
                 let command = match fan_speed {
-                    FanSpeed::Speed1 if temp > 60.0 => Some(DeviceCommand::SpeedUp),
-                    FanSpeed::Speed2 if temp > 65.0 => Some(DeviceCommand::SpeedUp),
-                    FanSpeed::Speed3 if temp > 70.0 => Some(DeviceCommand::SpeedUp),
-                    FanSpeed::Speed4 if temp > 75.0 => Some(DeviceCommand::SpeedUp),
-                    FanSpeed::Speed5 if temp > 80.0 => Some(DeviceCommand::SpeedUp),
-                    FanSpeed::Speed6 if temp > 80.0 => None,
+                    FanSpeed::Speed1 if temp > fan_curve[0] => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed2 if temp > fan_curve[1] => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed3 if temp > fan_curve[2] => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed4 if temp > fan_curve[3] => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed5 if temp > fan_curve[4] => Some(DeviceCommand::SpeedUp),
+                    FanSpeed::Speed6 if temp > fan_curve[4] => None,
                     FanSpeed::Speed6 => Some(DeviceCommand::SpeedDown),
-                    FanSpeed::Speed5 if temp < 75.0 => Some(DeviceCommand::SpeedDown),
-                    FanSpeed::Speed4 if temp < 70.0 => Some(DeviceCommand::SpeedDown),
-                    FanSpeed::Speed3 if temp < 65.0 => Some(DeviceCommand::SpeedDown),
-                    FanSpeed::Speed2 if temp < 60.0 => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed5 if temp < fan_curve[3] => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed4 if temp < fan_curve[2] => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed3 if temp < fan_curve[1] => Some(DeviceCommand::SpeedDown),
+                    FanSpeed::Speed2 if temp < fan_curve[0] => Some(DeviceCommand::SpeedDown),
                     FanSpeed::Speed5
                     | FanSpeed::Speed4
                     | FanSpeed::Speed3

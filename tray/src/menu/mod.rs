@@ -33,7 +33,7 @@ impl MenuItems {
     ///
     /// The struct is wrapped because it is self referential and meant to be shared and cloned,
     /// since the items' activation callbacks alter the state of other items.
-    pub fn new(device: Device) -> Rc<Self> {
+    pub fn new(device: Device, fan_curve: [f32; 5]) -> Rc<Self> {
         // Not particularly fond of this, but a compromise had to be made:
         // - The cyclic definition allows for items to be valid on construction and for those that
         //   need to store their callback [`SignalHandlerId`] to be able to do so.
@@ -42,7 +42,7 @@ impl MenuItems {
         //   the items and introduces room for mistakes.
         Rc::new_cyclic(move |menu_items| Self {
             speed_label: SpeedLabelItem::default(),
-            speed_auto: SpeedAutoItem::new_checkbox(menu_items.clone(), device.clone()),
+            speed_auto: SpeedAutoItem::new_checkbox(menu_items.clone(), device.clone(), fan_curve),
             speed_up: SpeedUpItem::new(menu_items.clone(), device.clone()),
             speed_down: SpeedDownItem::new(menu_items.clone(), device.clone()),
             leds: LedsToggleItem::new_checkbox(menu_items.clone(), device.clone()),

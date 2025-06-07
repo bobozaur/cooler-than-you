@@ -9,7 +9,7 @@ pub type PowerButtonPin = PB6;
 pub type LedButtonPin = PB2;
 
 pub trait ShortPressPin: PinOps {
-    const POST_PRESS_DELAY: u16 = 5;
+    const POST_PRESS_DELAY: u16 = 10;
     const SHORT_PRESS_MS: u16 = 45;
 }
 

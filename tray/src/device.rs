@@ -206,8 +206,8 @@ impl Stream for DeviceStateStream {
     }
 }
 
-/// Inner struct that allows providing a [`Drop`] implementation for
-/// the cheaply clonable [`Device`] wrapper type.
+/// Inner struct that allows providing a [`Drop`] implementation for the cheaply clonable [`Device`]
+/// wrapper type.
 #[derive(Clone, Debug)]
 struct DeviceInner {
     /// Using an [`Arc`] because that's what the async libusb transfers require.

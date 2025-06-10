@@ -12,8 +12,8 @@ use crate::{
 
 /// Collection of actionable menu items used in the UI.
 ///
-/// Items have to reference other items so they interact with each other,
-/// and this type makes sharing the menu items easy and convenient.
+/// Items have to reference other items so they interact with each other, and this type makes
+/// sharing the menu items easy and convenient.
 #[derive(Debug)]
 pub struct MenuItems {
     pub speed_label: SpeedLabelItem,

@@ -5,7 +5,7 @@ use gtk::{
     Menu, SeparatorMenuItem,
     traits::{MenuShellExt, WidgetExt},
 };
-use libappindicator::{AppIndicator, AppIndicatorStatus};
+use libappindicator::{AppIndicator as LibAppIndicator, AppIndicatorStatus};
 use shared::DeviceCommand;
 use tracing::instrument;
 
@@ -13,9 +13,9 @@ use crate::{AnyResult, Device, menu::MenuItems};
 
 /// The system tray icon UI indicator.
 ///
-/// Somewhat equivalent to a [`gtk::Application`], in that it takes care of
-/// setting up `gtk` related stuff under the hood and blocks the current thread
-/// when ran.
+/// Somewhat equivalent to a [`gtk::Application`], in that it takes care of setting up `gtk` related
+/// stuff under the hood and blocks the current thread when ran.
+#[derive(Debug)]
 pub struct Indicator {
     app_indicator: AppIndicator,
     fan_curve: [f32; 5],
@@ -31,11 +31,11 @@ impl Indicator {
     pub fn new(fan_curve: [f32; 5]) -> AnyResult<Self> {
         gtk::init()?;
 
-        let mut app_indicator = AppIndicator::new("cooler-than-you-tray", "cooler-than-you");
+        let mut app_indicator = LibAppIndicator::new("cooler-than-you-tray", "cooler-than-you");
         app_indicator.set_status(AppIndicatorStatus::Active);
 
         Ok(Self {
-            app_indicator,
+            app_indicator: AppIndicator(app_indicator),
             fan_curve,
         })
     }
@@ -66,7 +66,7 @@ impl Indicator {
         crate::spawn_local(Self::background_task(device, menu_items));
 
         menu.show_all();
-        self.app_indicator.set_menu(&mut menu);
+        self.app_indicator.0.set_menu(&mut menu);
 
         gtk::main();
     }
@@ -80,8 +80,8 @@ impl Indicator {
         Ok(())
     }
 
-    /// The main background tasks, meant to continuously read the device state
-    /// and adjust the UI according to it.
+    /// The main background tasks, meant to continuously read the device state and adjust the UI
+    /// according to it.
     #[instrument(skip_all, err(Debug))]
     async fn background_task(device: Device, menu_items: Rc<MenuItems>) -> AnyResult<()> {
         let mut state_stream = device.state_stream()?;
@@ -109,8 +109,10 @@ impl Indicator {
     }
 }
 
-impl Debug for Indicator {
+struct AppIndicator(LibAppIndicator);
+
+impl Debug for AppIndicator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Indicator").finish()
+        f.debug_struct("AppIndicator").finish()
     }
 }

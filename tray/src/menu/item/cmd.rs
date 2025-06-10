@@ -14,23 +14,23 @@ use crate::{
 
 /// Actionable item that sends a [`DeviceCommand::SpeedUp`] when clicked.
 ///
-/// Disabled when [`crate::menu::item::SpeedAutoItem`] is active or when
-/// [`PowerToggleItem`] is inactive.
+/// Disabled when [`crate::menu::item::SpeedAutoItem`] is active or when [`PowerToggleItem`] is
+/// inactive.
 pub type SpeedUpItem = CustomMenuItem<MenuItem, SpeedUp>;
 /// Actionable item that sends a [`DeviceCommand::SpeedDown`] when clicked.
 ///
-/// Disabled when [`crate::menu::item::SpeedAutoItem`] is active or when
-/// [`PowerToggleItem`] is inactive.
+/// Disabled when [`crate::menu::item::SpeedAutoItem`] is active or when [`PowerToggleItem`] is
+/// inactive.
 pub type SpeedDownItem = CustomMenuItem<MenuItem, SpeedDown>;
 /// Actionable item that sends a [`DeviceCommand::LedsColorChange`] when clicked.
 ///
 /// Disabled when [`LedsToggleItem`] is inactive.
 pub type LedsChangeColorItem = CustomMenuItem<MenuItem, LedsChangeColor>;
-/// Actionable checkbox item that sends a [`DeviceCommand::LedsOn`]/[`DeviceCommand::LedsOff`]
-/// if checked/unchecked, respectively.
+/// Actionable checkbox item that sends a [`DeviceCommand::LedsOn`]/[`DeviceCommand::LedsOff`] if
+/// checked/unchecked, respectively.
 pub type LedsToggleItem = CustomMenuItem<CheckMenuItem, LedsToggle>;
-/// Actionable checkbox item that sends a [`DeviceCommand::PowerOn`]/[`DeviceCommand::PowerOff`]
-/// if checked/unchecked, respectively.
+/// Actionable checkbox item that sends a [`DeviceCommand::PowerOn`]/[`DeviceCommand::PowerOff`] if
+/// checked/unchecked, respectively.
 pub type PowerToggleItem = CustomMenuItem<CheckMenuItem, PowerToggle>;
 
 /// Trait used for abstracting away the custom behavior of each command-issuing menu item kind.

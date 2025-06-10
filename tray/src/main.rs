@@ -1,10 +1,6 @@
-//! TODO:
-//! - comments and docs
+//! System tray icon for the `CoolerThanYou` device.
 //!
 //! System tray icon taken from: <https://www.svgrepo.com/svg/503337/fan-circled>.
-//! - 64x64px
-//! - stored in /usr/share/icons/hicolor/64x64/status/cooler-than-you-symbolic.svg, chmod 644, chown
-//!   root
 
 use anyhow::anyhow;
 use clap::{Parser, builder::ValueParser};

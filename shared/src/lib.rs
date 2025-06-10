@@ -1,3 +1,5 @@
+//! Shared utilities between the system tray and the embedded device code.
+//!
 //! VID and PID used from <https://github.com/obdev/v-usb/blob/master/usbdrv/USB-IDs-for-free.txt>.
 //! Discrimination is done by textual name.
 

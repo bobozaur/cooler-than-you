@@ -1,3 +1,12 @@
+//! CoolerThanYou device code.
+//!
+//! The code was developed for an Arduino Leonardo/Pro Micro with an ATmega32u4 running at 5V.
+//! Hardware components used:
+//! - TIMER0
+//! - Pins: PB1, PB2, PB3, PB4, PB5, PB6, PC6, PD7, PE6,
+//! - USB
+//! - PLL
+
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
@@ -5,18 +14,18 @@
 mod button;
 mod command;
 mod interrupt_cell;
+mod monitor;
 mod shared_state;
-mod timed_monitor;
 mod usb;
 
 use arduino_hal::{Pins, delay_ms};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
 use command::Command;
+use monitor::setup_timed_monitor;
 use panic_halt as _;
 use shared::{DeviceCommand, FanSpeed};
 use shared_state::SHARED_STATE;
-use timed_monitor::setup_timed_monitor;
 use usb::setup_usb;
 
 #[arduino_hal::entry]
@@ -61,11 +70,13 @@ fn main() -> ! {
         ..
     } = arduino_hal::pins!(peripherals);
 
+    // Create buttons
     let mut speed_up_btn = SpeedUpButton::new(speed_up_btn_pin.into_output());
     let mut speed_down_btn = SpeedDownButton::new(speed_down_btn_pin.into_output());
     let mut power_btn = PowerButton::new(power_btn_pin.into_output());
     let mut led_btn = LedButton::new(led_btn_pin.into_output());
 
+    // Setup the timed monitor
     setup_timed_monitor(
         &timer,
         speed_up_mon_pin.into_pull_up_input(),
@@ -75,11 +86,13 @@ fn main() -> ! {
         backlight_mon_pin.into_pull_up_input(),
     );
 
-    // For reasons beyond my understanding the USB must get setup AFTER
-    // the timer or it won't work correctly.
+    // Setup USB.
+    //
+    // For reasons beyond my understanding the USB must get setup AFTER the timer or it won't work
+    // correctly.
     setup_usb(pll, usb);
 
-    // Always ensure lowest speed is set on startup.
+    // Do some speed down button presses to always ensure a consistent lowest fan speed on startup.
     for _ in 0..FanSpeed::Speed6 as u8 {
         speed_down_btn.short_press();
     }
@@ -87,20 +100,18 @@ fn main() -> ! {
     // Enable interrupts globally.
     unsafe { interrupt::enable() };
 
-    // Button command priority
-    // Speed Up > Speed Down > Power > LED
-    //
-    // Speed controls don't work with backlight off
-    // Power and LED, however, do.
-
     loop {
+        // Check if a command has been received.
+        //
+        // NOTE: We try to keep the critical section as short as possible here and do the
+        //       actual button presses, with their inherent delays, afterwards.
         let command = interrupt::free(|cs| {
             let shared_state = &mut *SHARED_STATE.borrow(cs).borrow_mut();
             let power_enabled = shared_state.device_state().power_enabled();
             let leds_enabled = shared_state.device_state().leds_enabled();
 
-            // Omit commands that are inconsistent with the current state.
             loop {
+                // Ignore commands that are inconsistent with the current state.
                 break match shared_state.pop_command() {
                     Some(Command::Device(DeviceCommand::PowerOn)) if power_enabled => continue,
                     Some(Command::Device(DeviceCommand::PowerOff)) if !power_enabled => continue,
@@ -111,6 +122,7 @@ fn main() -> ! {
             }
         });
 
+        // Execute the command outside of the critical section.
         match command {
             Some(Command::Device(DeviceCommand::SpeedUp)) => speed_up_btn.short_press(),
             Some(Command::Device(DeviceCommand::SpeedDown)) => speed_down_btn.short_press(),

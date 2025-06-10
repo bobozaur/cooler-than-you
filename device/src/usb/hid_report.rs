@@ -1,5 +1,8 @@
 use usbd_hid::descriptor::{gen_hid_descriptor, generator_prelude::*};
-
+/// USB HID report.
+///
+/// The device can only send its state when it changes (packed in a single byte) and can only
+/// receive a byte representing a command to execute.
 #[gen_hid_descriptor(
     (collection = APPLICATION, usage_page = GENERIC_DESKTOP, usage = 0x0B) = {
         (usage_page = VENDOR_DEFINED_START, usage = 0x01) = {

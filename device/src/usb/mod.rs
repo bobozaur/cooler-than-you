@@ -21,11 +21,15 @@ use crate::{command::Command, interrupt_cell::InterruptCell, shared_state::SHARE
 
 type UsbBus = AvrGenericUsbBus<Suspender>;
 
-/// Since any action on the device would require at least 40 ms, I assume
-/// there's no reason to poll it much more frequently than that.
+/// Since any action on the device would require at least 40 ms, I assume there's no reason to poll
+/// it much more frequently than that.
 const USB_POLL_MS: u8 = 40;
 static USB_DEVICE: InterruptCell<UsbContext> = InterruptCell::uninit();
 
+/// Sets up the USB interface and enables `USB_GEN` and `USB_COM` interrupts and constructs the
+/// [`InterruptCell`] instace used in them. Note that since the ATmega32u4 does not have nested
+/// interrupts by default and we're not manuall enabling them, it is safe for the two interrupts to
+/// share the context stored in the [`InterruptCell`].
 pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
     static USB_BUS: InterruptCell<UsbBusAllocator<UsbBus>> = InterruptCell::uninit();
 
@@ -59,6 +63,7 @@ pub fn setup_usb(pll: PLL, usb: USB_DEVICE) {
     USB_DEVICE.init(UsbContext::new(usb_device, hid_class));
 }
 
+/// USB context. Contains components used exclusively in the `USB_GEN` and `USB_COM` interrupts.
 struct UsbContext {
     usb_device: UsbDevice<'static, UsbBus>,
     hid_class: HIDClass<'static, UsbBus>,
@@ -82,8 +87,8 @@ impl UsbContext {
         self.usb_device.poll(&mut [&mut self.hid_class]);
 
         interrupt::free(|cs| {
-            // For reasons beyond my understanding, the two USB interrupts seem to contend
-            // on the [`avr_device::interrupt::Mutex`] although, as far as I know, nested interrupts
+            // For reasons beyond my understanding, the two USB interrupts seem to contend on the
+            // [`avr_device::interrupt::Mutex`] although, as far as I know, nested interrupts
             // have to be enabled explicitly, which we do not do. Because of that, the panicking
             // variant [`std::cell::RefCell::borrow_mut`] crashes the device if used in
             // both interrupts.

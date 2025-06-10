@@ -1,5 +1,9 @@
 use thiserror::Error as ThisError;
 
+/// Enum representing the fans speed.
+///
+/// The discriminants start at `1` because space allows it and it makes them more in line with the
+/// [`FanSpeed`] variant they represent.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(test, derive(strum::EnumIter))]

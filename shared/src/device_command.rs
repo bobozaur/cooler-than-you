@@ -2,12 +2,11 @@ use thiserror::Error as ThisError;
 
 /// Commands that the device can execute.
 ///
-/// While the power and LED buttons are in fact toggles, separating
-/// them makes it easier to reason about what to do depending on the
-/// current device state.
+/// While the power and LED buttons are in fact toggles, separating them makes it easier to reason
+/// about what to do depending on the current device state.
 ///
-/// We start the enum variant indexing at `1` for the sake of
-/// having 0 represent no command to repeat in the [`crate::device_state::DeviceState`].
+/// We start the enum variant indexing at `1` for the sake of having 0 represent no command to
+/// repeat in the [`crate::device_state::DeviceState`].
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(test, derive(strum::EnumIter, PartialEq))]

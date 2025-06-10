@@ -6,11 +6,22 @@ use crate::{
     fan_speed::{FanSpeed, FanSpeedConvError},
 };
 
+/// Struct representing the device state. It is meant to be sent to the host when updated as both a
+/// confirmation for the last command as well as the current state of the device after the command
+/// was executed.
+///
+/// It gets packed into a single byte when sent to the host.
 #[derive(Clone, Copy, Debug)]
 pub struct DeviceState {
+    /// Whether power is currently enabled.
     power_enabled: bool,
+    /// Whether the LEDs are currently enabled.
     leds_enabled: bool,
+    /// The current fan speed.
     fan_speed: FanSpeed,
+    /// A command that must be repeated. This typically happens when a speed button gets pressed
+    /// but the backlight is inactive. In that case, we store the command in the state and send it
+    /// back to the host so it can be retried (with an active backlight now).
     command_to_repeat: Option<DeviceCommand>,
 }
 
@@ -104,7 +115,7 @@ impl TryFrom<u8> for DeviceState {
         let fan_speed = ((value & 0b0011_1000) >> 3).try_into()?;
         let command_to_repeat_byte = value & 0b0000_0111;
 
-        let repeat_command = (command_to_repeat_byte != 0)
+        let command_to_repeat = (command_to_repeat_byte != 0)
             .then(|| DeviceCommand::try_from(command_to_repeat_byte))
             .transpose()?;
 
@@ -112,7 +123,7 @@ impl TryFrom<u8> for DeviceState {
             power_enabled,
             leds_enabled,
             fan_speed,
-            command_to_repeat: repeat_command,
+            command_to_repeat,
         })
     }
 }

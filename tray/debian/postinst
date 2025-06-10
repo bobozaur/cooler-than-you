@@ -1,4 +1,5 @@
-#DEBHELPER#
+#!/bin/sh
+set -e
 
 echo "Reloading udev rules for cooler-than-you device..."
 udevadm control --reload-rules

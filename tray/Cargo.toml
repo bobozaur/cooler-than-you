@@ -9,7 +9,7 @@ license.workspace = true
 [package.metadata.deb]
 name = "cooler-than-you"
 depends = ["libgtk-3-dev", "libayatana-appindicator3-1"]
-maintainer-scripts = "debian"
+maintainer-scripts = "debian/"
 assets = [
     { source = "target/release/tray", dest = "/usr/bin/cooler-than-you", mode = "0755" },
     { source = "assets/69-cooler-than-you.rules", dest = "/etc/udev/rules.d/69-cooler-than-you.rules", mode = "0644" },

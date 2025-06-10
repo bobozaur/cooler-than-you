@@ -73,7 +73,7 @@ type LedButtonMonitor = ButtonMonitor<LedMonitorPin>;
 /// - Long presses are presses at least as long as 1400ms.
 /// - Buttons are not handled individually; their state is shared. This means that pressing a button
 ///   for 10ms and another one for 30ms will result in a button priority being enforced.
-/// - Button priority is Speed Up > Speed Down > Power > LED
+/// - Button priority is: Speed Up > Speed Down > Power > LED
 /// - Speed buttons do not work with the backlight off; they just trigger a wake.
 /// - Speed buttons do not require a button release for the short press to get registered; power and
 ///   LED buttons do.

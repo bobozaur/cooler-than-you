@@ -15,6 +15,7 @@ use pins::{
 use shared::{DeviceCommand, DeviceState};
 
 use crate::{
+    command::Command,
     interrupt_cell::InterruptCell,
     shared_state::{SHARED_STATE, SharedState},
 };
@@ -183,14 +184,18 @@ impl MonitorContext {
                     }
                 }
                 MonitorState::Focused(kind) => {
-                    let (button_pressed, short_press_fn_opt, long_press_fn_opt) = match kind {
-                        MonitorFocusTarget::Power => {
-                            (power_pressed, Some(DeviceState::toggle_power), None)
-                        }
-                        MonitorFocusTarget::Leds => {
-                            (led_pressed, None, Some(DeviceState::toggle_leds))
-                        }
-                    };
+                    let (button_pressed, short_press_fn_opt, long_press_fn_opt, command) =
+                        match kind {
+                            MonitorFocusTarget::Power => (
+                                power_pressed,
+                                Some(DeviceState::toggle_power),
+                                None,
+                                Some(Command::EnterBootloader),
+                            ),
+                            MonitorFocusTarget::Leds => {
+                                (led_pressed, None, Some(DeviceState::toggle_leds), None)
+                            }
+                        };
 
                     self.buttons_state = (self.buttons_state << 1) ^ u64::from(button_pressed);
 
@@ -217,6 +222,10 @@ impl MonitorContext {
 
                         if let Some(long_press_fn) = long_press_fn_opt {
                             shared_state.update_device_state(long_press_fn);
+                        }
+
+                        if let Some(command) = command {
+                            shared_state.push_command(command);
                         }
                     }
                 }

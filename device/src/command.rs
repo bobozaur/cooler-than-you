@@ -5,6 +5,7 @@ use shared::DeviceCommand;
 pub enum Command {
     /// Commands that map to physical button actions.
     Device(DeviceCommand),
+    EnterBootloader,
     /// Artifical command.
     ///
     /// This is here because on device unplug a USB suspend gets triggered which sends

@@ -1,11 +1,12 @@
 //! CoolerThanYou device code.
 //!
-//! The code was developed for an Arduino Leonardo/Pro Micro with an ATmega32u4 running at 5V.
+//! The code was developed for an Arduino Pro Micro with an ATmega32u4 running at 5V.
 //! Hardware components used:
 //! - TIMER0
 //! - Pins: PB1, PB2, PB3, PB4, PB5, PB6, PC6, PD7, PE6,
 //! - USB
 //! - PLL
+//! - WDT
 
 #![no_std]
 #![no_main]
@@ -18,7 +19,10 @@ mod monitor;
 mod shared_state;
 mod usb;
 
-use arduino_hal::{Pins, delay_ms};
+use arduino_hal::{
+    Pins, delay_ms,
+    hal::{Wdt, wdt::Timeout},
+};
 use avr_device::{asm::sleep, interrupt};
 use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
 use command::Command;
@@ -27,6 +31,24 @@ use panic_halt as _;
 use shared::{DeviceCommand, FanSpeed};
 use shared_state::SHARED_STATE;
 use usb::setup_usb;
+
+fn enter_bootloader(mut watchdog: Wdt) -> ! {
+    /// Magic value that tells the bootloader to remain in bootloader mode on watchdog resets.
+    /// Taken from <https://github.com/arduino/ArduinoCore-avr/blob/c8c514c9a19602542bc32c7033f48fecbbda4401/bootloaders/caterina/Caterina.c#L68>
+    const BOOT_KEY: u16 = 0x7777;
+    /// Pointer to the address where the bootloader looks for the [`BOOT_KEY`].
+    /// Taken from <https://github.com/arduino/ArduinoCore-avr/blob/c8c514c9a19602542bc32c7033f48fecbbda4401/bootloaders/caterina/Caterina.c#L69>
+    const BOOT_KEY_PTR: *mut u16 = 0x0800 as *mut u16;
+
+    /// Write the magic value
+    unsafe { core::ptr::write_volatile(BOOT_KEY_PTR, BOOT_KEY) };
+
+    /// Set the lowest possible time value for the watchdog.
+    watchdog.start(Timeout::Ms16).ok();
+
+    /// Loop until the watchdog reset happens.
+    loop {}
+}
 
 #[arduino_hal::entry]
 fn main() -> ! {
@@ -56,6 +78,7 @@ fn main() -> ! {
     let pll = peripherals.PLL;
     let timer = peripherals.TC0;
     let usb = peripherals.USB_DEVICE;
+    let wdt = peripherals.WDT;
 
     let Pins {
         d5: backlight_mon_pin,
@@ -75,6 +98,9 @@ fn main() -> ! {
     let mut speed_down_btn = SpeedDownButton::new(speed_down_btn_pin.into_output());
     let mut power_btn = PowerButton::new(power_btn_pin.into_output());
     let mut led_btn = LedButton::new(led_btn_pin.into_output());
+
+    // Create the watchdog instance
+    let watchdog = Wdt::new(wdt, &peripherals.CPU.mcusr);
 
     // Setup the timed monitor
     setup_timed_monitor(
@@ -134,6 +160,7 @@ fn main() -> ! {
             }
             Some(Command::Device(DeviceCommand::LedsColorChange)) => led_btn.short_press(),
             Some(Command::Delay275Ms) => delay_ms(275),
+            Some(Command::EnterBootloader) => enter_bootloader(watchdog),
             None => sleep(),
         }
     }

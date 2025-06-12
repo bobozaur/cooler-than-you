@@ -1,13 +1,6 @@
 //! CoolerThanYou device code.
-//!
-//! The code was developed for an Arduino Pro Micro with an ATmega32u4 running at 5V.
-//! Hardware components used:
-//! - TIMER0
-//! - Pins: PB1, PB2, PB3, PB4, PB5, PB6, PC6, PD7, PE6,
-//! - USB
-//! - PLL
-//! - WDT
 
+#![doc = include_str!("../README.md")]
 #![no_std]
 #![no_main]
 

@@ -1,8 +1,8 @@
 [package]
 name = "shared"
-version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
+version.workspace = true
 license.workspace = true
 
 [dependencies]

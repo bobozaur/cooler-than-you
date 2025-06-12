@@ -1,6 +1,5 @@
-//! System tray icon for the `CoolerThanYou` device.
-//!
-//! System tray icon taken from: <https://www.svgrepo.com/svg/503337/fan-circled>.
+//! System tray for the `CoolerThanYou` device.
+#![doc = include_str!("../README.md")]
 
 use anyhow::anyhow;
 use clap::{Parser, builder::ValueParser};

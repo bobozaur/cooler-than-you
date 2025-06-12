@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 mod device;
 mod exactly_one;
 mod fd_callbacks;

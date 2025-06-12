@@ -1,9 +1,9 @@
 [package]
 name = "tray"
-version = "0.1.0"
 description = "CoolerThanYou system tray icon that drives the device."
 authors.workspace = true
 edition.workspace = true
+version.workspace = true
 license.workspace = true
 
 [package.metadata.deb]

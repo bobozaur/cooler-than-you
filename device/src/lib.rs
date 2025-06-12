@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 #![no_std]
 #![feature(abi_avr_interrupt)]
 
@@ -109,7 +110,7 @@ impl SharedState {
 /// dealing with the underlying type.
 ///
 /// The purpose of this cell is to initialize statics that will get used exclusively in interrupts.
-struct InterruptCell<T>(UnsafeCell<MaybeUninit<T>>);
+pub struct InterruptCell<T>(UnsafeCell<MaybeUninit<T>>);
 
 /// This implementation does not rely on `T: Sync` as well because of
 /// [`usb_device::bus::UsbBusAllocator`], which is not sync.

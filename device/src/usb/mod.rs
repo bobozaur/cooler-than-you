@@ -17,7 +17,7 @@ use usb_device::{
 };
 use usbd_hid::{descriptor::SerializedDescriptor, hid_class::HIDClass};
 
-use crate::{command::Command, interrupt_cell::InterruptCell, shared_state::SHARED_STATE};
+use crate::{InterruptCell, SHARED_STATE, command::Command};
 
 type UsbBus = AvrGenericUsbBus<Suspender>;
 

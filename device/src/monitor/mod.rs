@@ -14,11 +14,7 @@ use pins::{
 };
 use shared::{DeviceCommand, DeviceState};
 
-use crate::{
-    command::Command,
-    interrupt_cell::InterruptCell,
-    shared_state::{SHARED_STATE, SharedState},
-};
+use crate::{InterruptCell, SHARED_STATE, SharedState, command::Command};
 
 /// Monitor context that gets setup prior to enabling interrupts and is used exclusively from the
 /// `TIMER0_COMPA` interrupt.

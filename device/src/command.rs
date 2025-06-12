@@ -5,6 +5,11 @@ use shared::DeviceCommand;
 pub enum Command {
     /// Commands that map to physical button actions.
     Device(DeviceCommand),
+    /// Aritifical command.
+    ///
+    /// This is used to trigger a watchdog reset that leaves the device in bootloader mode, ready to
+    /// be flashed. Gets issued when a long-press on the power button (otherwise a no-op) is noticed
+    /// by the monitor.
     EnterBootloader,
     /// Artifical command.
     ///

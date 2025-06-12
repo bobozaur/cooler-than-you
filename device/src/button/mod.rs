@@ -12,6 +12,7 @@ pub type PowerButton = Button<PowerButtonPin>;
 pub type LedButton = Button<LedButtonPin>;
 
 /// Generic button struct that emulates button presses.
+#[allow(missing_debug_implementations, reason = "arduino_hal::port::Pin does not implement Debug")]
 pub struct Button<PIN>(Pin<Output, PIN>);
 
 impl<PIN> Button<PIN>

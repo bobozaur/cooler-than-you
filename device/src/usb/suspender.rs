@@ -2,7 +2,7 @@ use arduino_hal::{pac::PLL, usb::SuspendNotifier};
 use avr_device::interrupt;
 use shared::DeviceCommand;
 
-use crate::{command::Command, shared_state::SHARED_STATE};
+use crate::{SHARED_STATE, command::Command};
 
 /// Implementor of [`SuspendNotifier`] whose job is to turn the LEDs and power off when the device
 /// is suspended and turn them on when the device is resumed.

@@ -10,45 +10,19 @@
 
 #![no_std]
 #![no_main]
-#![feature(abi_avr_interrupt)]
 
-mod button;
-mod command;
-mod interrupt_cell;
-mod monitor;
-mod shared_state;
-mod usb;
-
-use arduino_hal::{
-    Pins, delay_ms,
-    hal::{Wdt, wdt::Timeout},
-};
+use arduino_hal::{Pins, delay_ms, hal::Wdt};
 use avr_device::{asm::sleep, interrupt};
-use button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton};
-use command::Command;
-use monitor::setup_timed_monitor;
+use device::{
+    SHARED_STATE,
+    button::{LedButton, PowerButton, SpeedDownButton, SpeedUpButton},
+    command::Command,
+    enter_bootloader,
+    monitor::setup_timed_monitor,
+    usb::setup_usb,
+};
 use panic_halt as _;
 use shared::{DeviceCommand, FanSpeed};
-use shared_state::SHARED_STATE;
-use usb::setup_usb;
-
-fn enter_bootloader(mut watchdog: Wdt) -> ! {
-    /// Magic value that tells the bootloader to remain in bootloader mode on watchdog resets.
-    /// Taken from <https://github.com/arduino/ArduinoCore-avr/blob/c8c514c9a19602542bc32c7033f48fecbbda4401/bootloaders/caterina/Caterina.c#L68>
-    const BOOT_KEY: u16 = 0x7777;
-    /// Pointer to the address where the bootloader looks for the [`BOOT_KEY`].
-    /// Taken from <https://github.com/arduino/ArduinoCore-avr/blob/c8c514c9a19602542bc32c7033f48fecbbda4401/bootloaders/caterina/Caterina.c#L69>
-    const BOOT_KEY_PTR: *mut u16 = 0x0800 as *mut u16;
-
-    /// Write the magic value
-    unsafe { core::ptr::write_volatile(BOOT_KEY_PTR, BOOT_KEY) };
-
-    /// Set the lowest possible time value for the watchdog.
-    watchdog.start(Timeout::Ms16).ok();
-
-    /// Loop until the watchdog reset happens.
-    loop {}
-}
 
 #[arduino_hal::entry]
 fn main() -> ! {
@@ -99,7 +73,7 @@ fn main() -> ! {
     let mut power_btn = PowerButton::new(power_btn_pin.into_output());
     let mut led_btn = LedButton::new(led_btn_pin.into_output());
 
-    // Create the watchdog instance
+    // Create the watchdog timer
     let watchdog = Wdt::new(wdt, &peripherals.CPU.mcusr);
 
     // Setup the timed monitor

@@ -20,11 +20,11 @@ After deciding to go futher from simple suspend/resume behavior, the Pro Micro w
 
 ### Laptop cooler
 
-<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/device/images/cooler.jpeg" style="max-width: 100%;" width="400" />
+<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/images/cooler.jpeg" style="max-width: 100%;" width="400" />
 
 The control panel with its four buttons (left to right): speed up, speed down, LED, power. Note that the screen backlight is _ON_ in the picture.
 
-<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/device/images/cooler_buttons.jpeg" style="max-width: 100%;" width="400" />
+<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/images/cooler_buttons.jpeg" style="max-width: 100%;" width="400" />
 
 Observed cooler behavior:
 
@@ -52,11 +52,11 @@ Hardware components used:
 
 The back of the cooler PCB is where the hardware connections were soldered.
 
-<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/device/images/board_back.jpeg" style="max-width: 100%;" width="400" />
+<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/images/board_back.jpeg" style="max-width: 100%;" width="400" />
 
 Cooler PCB front:
 
-<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/device/images/board_front.jpeg" style="max-width: 100%;" width="400" />
+<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/images/board_front.jpeg" style="max-width: 100%;" width="400" />
 
 The Arduino Pro Micro is connected through a cut micro USB cable directly to the pins of the USB-A port that the cooler itself is powered from. The USB-A port lives on a small daughter board. This makes it operational whenever the cooler would be. Unfortunately forgot to take pictures before putting it all together, but it's just four wires soldered to the VCC, D-, D+ and GND pins of the through-hole USB port on the daughter board.
 

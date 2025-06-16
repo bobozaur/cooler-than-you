@@ -2,6 +2,8 @@
 
 System tray icon for the `CoolerThanYou` device. SVG icon freely available at: https://www.svgrepo.com/svg/503337/fan-circled.
 
+<img src="https://raw.githubusercontent.com/bobozaur/cooler-than-you/main/images/tray.png" style="max-width: 100%;" width="400" />
+
 ## Overview
 
 The system tray acts as a software control panel in the form of a `libusb` device driver. The tray UI is built using `libappindicator` and `gtk-rs` and runs in a single thread. Async `rusb` calls are also hooked in the same `glib` event loop, allowing the entire app to run in a single thread. Apart from the emulated hardware buttons, the tray also provides automatic fan speed adjustmenting based on the CPU temperature.
